@@ -2,8 +2,6 @@ import { Swiper, SwiperItem } from '@tarojs/components';
 
 import React from 'react';
 
-import BgImg from '../../static/img/bg.png';
-
 const Banner = () => {
   return (
     <Swiper style={{ height: '220px' }} autoplay>
@@ -13,7 +11,9 @@ const Banner = () => {
             width='100vw'
             height='100%'
             onClick={() => console.log(index)}
-            src={BgImg}
+            src={
+              'https://img20.360buyimg.com/openfeedback/jfs/t1/281369/23/13030/187922/67ec1f31Fa0add508/4a1c6df7ce3da90e.png'
+            }
             alt=''
           />
         </SwiperItem>

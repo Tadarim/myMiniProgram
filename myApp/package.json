@@ -21,6 +21,7 @@
   "author": "",
   "dependencies": {
     "@babel/runtime": "^7.21.5",
+    "@nutui/icons-react-taro": "^3.0.1",
     "@nutui/nutui-react-taro": "^2.6.14",
     "@tarojs/components": "4.0.9",
     "@tarojs/helper": "4.0.9",
@@ -37,6 +38,8 @@
     "@tarojs/runtime": "4.0.9",
     "@tarojs/shared": "4.0.9",
     "@tarojs/taro": "4.0.9",
+    "classnames": "^2.5.1",
+    "lodash": "^4.17.21",
     "react": "^18.0.0",
     "react-dom": "^18.0.0"
   },

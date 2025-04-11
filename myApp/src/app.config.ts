@@ -3,7 +3,8 @@ export default defineAppConfig({
     'pages/index/index',
     'pages/chat/index',
     'pages/forum/index',
-    'pages/user/index'
+    'pages/user/index',
+    'pages/category/index'
   ],
   window: {
     backgroundTextStyle: 'light',

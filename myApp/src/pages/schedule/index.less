@@ -1,0 +1,96 @@
+.schedule-page {
+  background: #fff;
+  min-height: 100vh;
+  padding: 16px;
+
+  .calendar {
+    background: #fff;
+    border-radius: 12px;
+    margin: 16px;
+    padding: 16px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    :global {
+      .nut-calendar-card {
+        --nutui-calendar-base-font-size: 14px;
+        --nutui-calendar-day-font-size: 16px;
+        --nutui-calendar-choose-color: var(--nutui-brand-color);
+        --nutui-calendar-choose-font-color: #fff;
+
+        .nut-calendar-card__header {
+          padding: 0 0 16px;
+          font-size: 18px;
+          font-weight: bold;
+        }
+
+        .nut-calendar-card__body {
+          .calendar-card__day {
+            height: 40px;
+            &.active {
+              background: var(--nutui-calendar-choose-color);
+              border-radius: 20px;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .schedule-list {
+    margin-top: 24px;
+
+    &-title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 16px;
+    }
+
+    &-item {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 12px;
+
+      &-icon {
+        width: 32px;
+        height: 32px;
+        margin-right: 12px;
+      }
+
+      &-content {
+        flex: 1;
+
+        &-title {
+          font-size: 15px;
+          color: #333;
+          margin-bottom: 4px;
+        }
+
+        &-time {
+          font-size: 13px;
+          color: #666;
+        }
+      }
+    }
+  }
+
+  .add-button {
+    position: fixed;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    height: 48px;
+    background: #1890ff;
+    color: #fff;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 4px 12px rgba(24, 144, 255, 0.3);
+  }
+}
