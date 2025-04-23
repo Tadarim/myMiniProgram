@@ -1,0 +1,29 @@
+.title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1em 0.5rem;
+  margin-left: 0;
+  font-size: 1em;
+  font-weight: bold;
+  color: #333;
+
+  &-link {
+    font-size: 0.8em;
+    font-weight: normal;
+    color: #888;
+    display: flex;
+    align-items: center;
+
+    &::after {
+      content: '';
+      display: inline-block;
+      width: 0.5em;
+      height: 0.5em;
+      margin-left: 0.3em;
+      border-top: 1px solid #888;
+      border-right: 1px solid #888;
+      transform: rotate(45deg);
+    }
+  }
+}

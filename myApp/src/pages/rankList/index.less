@@ -1,0 +1,260 @@
+@import '@/static/styles/variables.less';
+
+.rankList-page {
+  min-height: 100vh;
+  padding-top: 88px;
+}
+
+// 自定义 Tabs 样式
+:global {
+  .nut-tabs {
+    background-color: #4a90e2;
+
+    .nut-tabs__titles {
+      background-color: transparent;
+      border-bottom: none;
+      padding: 10px 0;
+    }
+
+    .nut-tabs__titles-item {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+
+      &.active {
+        color: #fff;
+        font-weight: 500;
+      }
+    }
+
+    .nut-tabs__line {
+      background-color: #fff;
+      width: 20px !important;
+      height: 2px;
+      border-radius: 1px;
+    }
+
+    .nut-tabs__content {
+      background-color: transparent;
+    }
+  }
+}
+
+.tab-container {
+  display: flex;
+  background-color: #4a90e2;
+  padding: 10px 0;
+  margin-bottom: 10px;
+
+  .tab-item {
+    flex: 1;
+    text-align: center;
+    font-size: 14px;
+    position: relative;
+    color: rgba(255, 255, 255, 0.7);
+
+    &.active {
+      color: #fff;
+      font-weight: 500;
+
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 20px;
+        height: 2px;
+        background-color: #fff;
+        border-radius: 1px;
+      }
+    }
+  }
+}
+
+.custom-tab-pane {
+  padding: 0;
+}
+
+.user-rank-container {
+  .top-user-section {
+    height: 200px;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 15px;
+    border-bottom-left-radius: 100px;
+    border-bottom-right-radius: 100px;
+
+    .top-user-content {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding-top: 30px;
+      width: 100%;
+      height: 250px;
+
+      background: @primary-gradient;
+
+      .top-user-avatar {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        border: 3px solid #fff;
+        margin-bottom: 10px;
+      }
+
+      .crown-icon {
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 24px;
+      }
+
+      .top-user-name {
+        color: #fff;
+        font-size: 18px;
+        font-weight: 500;
+        margin-bottom: 5px;
+      }
+
+      .top-user-score {
+        color: #fff;
+        font-size: 24px;
+        font-weight: bold;
+      }
+    }
+  }
+
+  .user-list {
+    padding: 0 15px;
+
+    .user-item {
+      display: flex;
+      align-items: center;
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+
+      .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        margin-right: 15px;
+      }
+
+      .user-name {
+        flex: 1;
+        font-size: 16px;
+        color: #333;
+      }
+
+      .user-score {
+        font-size: 16px;
+        color: #4a90e2;
+        font-weight: 500;
+      }
+    }
+  }
+}
+
+.course-rank-container {
+  padding: 15px;
+
+  .course-list {
+    .course-item {
+      display: flex;
+      align-items: center;
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+
+      .course-info {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+
+        .course-title {
+          font-size: 16px;
+          color: #333;
+
+          max-width: 170px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .course-count {
+          font-size: 12px;
+          color: #999;
+        }
+      }
+    }
+  }
+}
+
+.exercise-rank-container {
+  padding: 15px;
+
+  .exercise-list {
+    .exercise-item {
+      display: flex;
+      align-items: center;
+      background-color: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+
+      .exercise-info {
+        flex: 1;
+        display: flex;
+        justify-content: space-between;
+
+        .exercise-title {
+          font-size: 16px;
+          color: #333;
+          max-width: 170px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .exercise-count {
+          font-size: 12px;
+          color: #999;
+        }
+      }
+    }
+  }
+}
+
+.rank-number {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #eee;
+  color: #666;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  margin-right: 15px;
+
+  &.top-1 {
+    background-color: #ffda23;
+    color: #fff;
+  }
+
+  &.top-2 {
+    background-color: #c0c0c0;
+    color: #fff;
+  }
+
+  &.top-3 {
+    background-color: #cd7f32;
+    color: #fff;
+  }
+}

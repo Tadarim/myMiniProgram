@@ -1,0 +1,395 @@
+@import '@/static/styles/variables.less'; // 假设你有全局变量文件
+
+.chatroom-container {
+  background-color: @primary-gray;
+}
+
+/* 消息列表 */
+.message-list {
+  flex: 1;
+  padding: 15px 10px 0; // 顶部和左右边距，移除底部 padding
+  box-sizing: border-box;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.message-item-wrapper {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+
+  // 恢复 self 样式
+  &.self {
+    align-items: flex-end; // 自己消息整体靠右
+    .message-item {
+      flex-direction: row-reverse; // 头像在右，内容在左
+    }
+    .message-content-area {
+      align-items: flex-end; // 昵称时间和气泡右对齐
+      margin-left: 0;
+      margin-right: 10px;
+    }
+    .sender-info {
+      justify-content: flex-end; // 昵称时间靠右
+      .name {
+        color: #888; // 时间和昵称间距
+        order: 1; // 让昵称在时间之后（如果需要）
+        margin-left: 5px;
+        margin-right: 0;
+      }
+      .time {
+        order: 0; // 时间在前
+      }
+    }
+    .message-bubble {
+      background-color: #95ec69; // 自己气泡颜色 (微信绿)
+      border-radius: 8px 0 8px 8px; // 调整圆角
+      .text {
+        color: #000; // 自己气泡文字颜色
+      }
+    }
+  }
+
+  // 恢复 other 样式
+  &.other {
+    align-items: flex-start; // 对方消息整体靠左
+    .message-item {
+      flex-direction: row; // 头像在左，内容在右
+    }
+    .message-content-area {
+      align-items: flex-start; // 昵称时间和气泡左对齐
+      margin-left: 10px;
+      margin-right: 0;
+    }
+    .sender-info {
+      justify-content: flex-start; // 昵称时间靠左
+      .name {
+        color: #888;
+        margin-right: 8px; // 昵称和时间间距
+      }
+    }
+    .message-bubble {
+      background-color: #ffffff; // 对方气泡颜色
+      margin-right: 0;
+      border-radius: 0 8px 8px 8px; // 调整圆角
+      .text {
+        color: #333; // 对方气泡文字颜色
+      }
+    }
+  }
+}
+
+/* 可选：单独显示时间样式 */
+.message-time {
+  text-align: center;
+  font-size: 12px;
+  color: #aaa;
+  margin-bottom: 10px;
+  width: 100%;
+}
+
+// 恢复 message-item 样式
+.message-item {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  align-items: flex-start; // 保持这个设置
+}
+
+// 恢复 avatar 样式
+.avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 5px;
+  flex-shrink: 0;
+  margin: 0; // 确保没有外边距
+}
+
+/* 调整 message-content-area 样式 */
+.message-content-area {
+  display: flex;
+  flex-direction: column;
+  max-width: calc(100% - 40px - 10px - 10px);
+  padding: 0;
+}
+
+/* 调整 sender-info 样式 */
+.sender-info {
+  display: flex;
+  // align-items: center; // 移除垂直居中，让其自然对齐顶部
+  margin-bottom: 4px;
+  padding: 0;
+
+  .name {
+    font-size: 12px;
+    line-height: 1.2; // 增加行高控制
+  }
+  .time {
+    font-size: 12px;
+    color: #aaa;
+    line-height: 1.2; // 增加行高控制
+  }
+}
+
+// 恢复 message-bubble 样式
+.message-bubble {
+  padding: 8px 12px; // 默认文本气泡内边距
+  border-radius: 8px;
+  position: relative;
+  display: inline-block; // 改回 inline-block，让气泡包裹内容
+  margin-top: 0;
+  margin-bottom: 0;
+  background-color: #ffffff; // 默认对方气泡背景
+
+  // 图片/文件消息的特殊处理
+  &.media {
+    padding: 0; // 图片消息移除内边距
+    background-color: transparent; // 图片消息透明背景
+    // 文件消息会在内部 .message-content-file 重新设置背景和内边距
+    max-width: 220px; // 给媒体消息一个最大宽度限制
+  }
+
+  .text {
+    font-size: 15px;
+    line-height: 1.5;
+    word-break: break-all;
+    white-space: pre-wrap;
+    // 移除这里的 padding，让它由 .message-bubble 控制
+    // padding: 0;
+
+    .message-emoji {
+      width: 20px;
+      height: 20px;
+      vertical-align: middle;
+      margin: 0 2px;
+    }
+
+    // 图片内容的样式
+    .message-content-image {
+      max-width: 100%; // 图片宽度充满 media 气泡
+      max-height: 200px;
+      display: block;
+      border-radius: 8px; // 图片也加圆角
+      vertical-align: bottom; // 防止图片下方有空隙
+    }
+
+    // 文件消息包装器
+    .message-content-file-wrapper {
+      cursor: pointer; // 添加手型光标
+      display: inline-block; // 确保包装器尺寸适应内容
+    }
+
+    .text {
+      color: #000; // 自己文本气泡文字颜色
+
+      // 自己发送的文件消息样式
+      .message-content-file {
+        background-color: #95ec69; // 自己文件消息用绿色背景
+
+        .file-info {
+          .file-name {
+            color: #000; // 文件名颜色
+          }
+          .file-size {
+            color: #333; // 文件大小颜色
+          }
+        }
+      }
+    }
+  }
+}
+
+// 自己发送的消息样式覆盖
+.message-item-wrapper.self {
+  .message-bubble {
+    background-color: #95ec69; // 自己文本气泡背景
+    border-radius: 8px 0 8px 8px; // 调整圆角
+
+    // 自己发送的媒体消息
+    &.media {
+      background-color: transparent; // 图片消息透明
+      // 文件消息会在内部 .message-content-file 重新设置背景
+    }
+
+    .text {
+      color: #000; // 自己文本气泡文字颜色
+
+      .message-content-file {
+        display: flex;
+        background-color: #95ec69; // 自己文件消息用绿色背景
+
+        .file-icon {
+          margin-right: 8px; // 文件名和大小之间的间距
+        }
+
+        .file-info {
+          .file-name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: #000; // 文件名颜色
+          }
+        }
+      }
+    }
+  }
+}
+
+/* 输入区域样式 (取消注释并恢复之前的样式) */
+
+.input-area {
+  background-color: #f7f7f7;
+  border-top: 1px solid #e0e0e0;
+  position: sticky; // 或 fixed
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+.input-controls {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+}
+.message-input {
+  // 这个类名现在应用在 Editor 上
+  flex: 1;
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 5px;
+  padding: 8px 12px; // 保留内边距
+  margin: 0 8px;
+  // height: 38px; // 移除固定高度
+  min-height: 38px; // 修改：使用最小高度
+  max-height: 100px; // 新增：限制最大高度，超出可滚动 (Editor 内部通常会处理)
+  // line-height: 38px; // 移除固定行高，富文本编辑器通常自适应
+  font-size: 15px;
+  box-sizing: border-box;
+  // padding-top: 0; // 移除
+  // padding-bottom: 0; // 移除
+  // 确保 placeholder 样式 (Taro Editor 可能有特定的伪类或内部元素)
+  // .ql-blank::before { // 这是 Quill.js 的方式，Taro 可能不同，需要检查
+  //   color: #ccc;
+  //   font-style: normal;
+  // }
+
+  // 可能需要为插入的 emoji 图片设置样式
+  .message-emoji-in-editor {
+    vertical-align: middle; // 尝试垂直对齐
+    margin: 0 1px;
+  }
+}
+// 新增：附加功能按钮样式
+.extra-btn {
+  padding: 5px;
+  margin-right: 8px; // 与输入框的间距
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666; // 图标颜色
+
+  // 新增：控制 "+" 图标图片的大小
+  .extra-btn-icon {
+    width: 24px; // 根据你的图标调整
+    height: 24px; // 根据你的图标调整
+  }
+}
+
+// 附加功能面板内项目样式
+.extra-panel-item {
+  .extra-panel-icon-wrapper {
+    // 确保 wrapper 内的图片能正确显示
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    .extra-panel-icon {
+      width: 32px;
+      height: 32px;
+    }
+  }
+}
+
+.send-button {
+  padding: 7px 15px;
+  background-color: #ccc;
+  color: #fff;
+  border-radius: 5px;
+  font-size: 14px;
+  border: none;
+  transition: background-color 0.2s;
+
+  &.active {
+    background-color: #06a7ff; // 或其他激活颜色
+  }
+}
+.emoji-panel {
+  height: 200px;
+  background-color: #f7f7f7;
+  padding: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  overflow-y: auto;
+  border-top: 1px solid #e0e0e0;
+}
+.emoji-item {
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% / 8); // 示例：每行8个
+  box-sizing: border-box;
+}
+.emoji-img {
+  width: 28px;
+  height: 28px;
+}
+// 新增：附加功能面板样式
+.extra-panel {
+  // 与 emoji-panel 类似，但内容不同
+  height: 150px; // 可以根据内容调整高度
+  background-color: #f7f7f7;
+  padding: 15px 10px; // 内边距
+  display: flex;
+  flex-wrap: wrap; // 如果一行放不下可以换行
+  align-content: flex-start;
+  overflow-y: auto;
+  border-top: 1px solid #e0e0e0;
+  box-sizing: border-box;
+}
+
+// 新增：附加功能面板内项目样式
+.extra-panel-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: calc(100% / 4); // 示例：每行最多放4个
+  margin-bottom: 15px; // 项目间垂直间距
+  cursor: pointer; // 提示可点击
+
+  .extra-panel-icon-wrapper {
+    width: 50px; // 图标背景区域宽度
+    height: 50px; // 图标背景区域高度
+    background-color: #fff; // 白色背景
+    border-radius: 8px; // 圆角
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 5px; // 图标和文字间距
+    border: 1px solid #eee; // 细边框
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); // 轻微阴影
+  }
+
+  .extra-panel-text {
+    font-size: 12px;
+    color: #666;
+  }
+}
+// 新增：为编辑器内 emoji 图片添加样式 (如果需要)
+// .message-emoji-in-editor {
+//   width: 20px;
+//   height: 20px;
+//   vertical-align: middle; // 尝试让图片和文字基线对齐
+// }

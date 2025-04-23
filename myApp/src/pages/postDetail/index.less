@@ -1,0 +1,225 @@
+.post-detail-page {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #f7f7f7; // 页面背景色
+
+  .loading-placeholder,
+  .error-placeholder {
+    padding: 40px;
+    text-align: center;
+    color: #999;
+  }
+
+  .content-scroll {
+    flex: 1;
+    padding-bottom: 60px; // 为底部输入框留出空间
+  }
+
+  .author-info {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: #fff;
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+
+    .name-time {
+      display: flex;
+      flex-direction: column;
+
+      .username {
+        font-size: 15px;
+        font-weight: bold;
+        color: #333;
+      }
+
+      .time-ago {
+        font-size: 12px;
+        color: #999;
+      }
+    }
+  }
+
+  .post-content-detail {
+    padding: 15px;
+    background-color: #fff;
+    margin-top: 1px; // 与上方分割线效果
+
+    .content-text {
+      font-size: 16px;
+      line-height: 1.7;
+      color: #333;
+      white-space: pre-wrap; // 保留换行和空格
+      word-break: break-word;
+    }
+  }
+
+  .post-image-container-detail {
+    margin-top: 10px;
+    background-color: #fff; // 图片区域背景
+    padding: 0 15px 15px 15px; // 图片下方留白
+
+    .post-image-detail {
+      width: 100%;
+      display: block; // 消除图片下方空隙
+      max-height: 400px; // 限制图片最大高度
+      object-fit: contain; // 保持图片比例完整显示
+    }
+  }
+
+  .action-bar {
+    display: flex;
+    justify-content: space-around; // 均匀分布
+    align-items: center;
+    padding: 15px 0;
+    background-color: #fff;
+    margin-top: 10px;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+
+    .action-item {
+      display: flex;
+      align-items: center;
+      color: #666;
+      cursor: pointer;
+
+      .nut-icon {
+        // 图标样式
+        margin-right: 5px;
+      }
+
+      .action-text {
+        font-size: 14px;
+      }
+
+      &:active {
+        // 点击效果
+        opacity: 0.7;
+      }
+    }
+  }
+
+  .divider {
+    height: 10px;
+    background-color: #f7f7f7; // 分隔区域颜色同页面背景
+  }
+
+  .comments-section {
+    background-color: #fff;
+    padding: 15px;
+
+    .comments-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 15px; // 标题和下方内容的间距
+      color: #333;
+    }
+
+    .comment-item {
+      display: flex;
+      margin-bottom: 20px;
+
+      /* !! 新增：为第一个评论项增加上边距 !! */
+      &:first-of-type {
+        margin-top: 15px; // 增加标题和第一条评论之间的距离
+      }
+
+      .comment-avatar {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        margin-right: 10px;
+        flex-shrink: 0; // 防止头像被压缩
+      }
+
+      .comment-body {
+        flex: 1;
+
+        .comment-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 5px;
+
+          .comment-username {
+            font-size: 14px;
+            color: #555;
+            font-weight: 500;
+          }
+
+          .comment-time {
+            font-size: 12px;
+            color: #aaa;
+          }
+        }
+
+        .comment-content {
+          font-size: 14px;
+          color: #333;
+          line-height: 1.6;
+          white-space: pre-wrap;
+          word-break: break-word;
+        }
+      }
+    }
+
+    .no-comments {
+      text-align: center;
+      color: #999;
+      padding: 20px 0;
+    }
+  }
+
+  .comment-input-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #fff;
+    border-top: 1px solid #eee;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.03);
+
+    /* !! 修改：替换 input-placeholder 为 comment-input !! */
+    .comment-input {
+      flex: 1;
+      height: 36px;
+      line-height: 36px; // 确保垂直居中
+      background-color: #f7f7f7;
+      border-radius: 18px;
+      padding: 0 15px;
+      font-size: 14px;
+      color: #333; // 输入文字颜色
+      margin-right: 10px;
+      // 移除 placeholder 的颜色，使用 input 默认的
+    }
+
+    .send-button {
+      padding: 8px 15px;
+      background-color: #ccc; // 默认灰色，表示不可用
+      color: #fff;
+      border-radius: 18px;
+      font-size: 14px;
+      cursor: default; // 默认光标
+      transition: background-color 0.2s; // 添加过渡效果
+
+      /* !! 新增：当有输入内容时的激活样式 !! */
+      &.active {
+        background-color: #1989fa; // 主题色
+        cursor: pointer; // 手型光标
+
+        &:active {
+          background-color: #1570cc;
+        }
+      }
+    }
+  }
+}

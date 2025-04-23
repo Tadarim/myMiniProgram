@@ -1,0 +1,41 @@
+@import '@/static/styles/variables.less';
+
+.schedule-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 16px;
+  margin-top: 12px;
+
+  background: #f8f9fa;
+  border-radius: 8px;
+
+  &-icon {
+    width: 32px;
+    height: 32px;
+    margin-right: 12px;
+  }
+
+  &-content {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  &-title {
+    font-size: 15px;
+    color: #333;
+    margin-bottom: 4px;
+  }
+
+  &-time {
+    font-size: 13px;
+    color: #666;
+  }
+}
+
+.nut-dialog-footer-ok {
+  background: @primary-gradient;
+}
