@@ -13,8 +13,6 @@ import {
 import React, { useState, useEffect, useRef } from 'react';
 
 import NavigationBar from '@/components/NavigationBar';
-import ICON_LOCK from '@/static/icon/lock.png';
-import ICON_WECHAT from '@/static/icon/wechat.png';
 
 import './index.less';
 
@@ -39,7 +37,6 @@ const LoginPage: React.FC = () => {
     };
   }, []);
 
-  // 登录/注册处理函数 (保持不变)
   const handleLoginRegister = async (values) => {
     setLoading(true);
     console.log('Login/Register Form values:', values);
@@ -243,7 +240,10 @@ const LoginPage: React.FC = () => {
             </View>
 
             <View className='input-with-icon'>
-              <Image src={ICON_LOCK} className='input-img-icon' />
+              <Image
+                src='https://img20.360buyimg.com/openfeedback/jfs/t1/276941/4/26814/887/6808e5a0F4ab9a8f8/724a6a494e574979.png'
+                className='input-img-icon'
+              />
 
               <FormItem
                 name='password'
@@ -323,7 +323,10 @@ const LoginPage: React.FC = () => {
             </View>
 
             <View className='input-with-icon'>
-              <Image src={ICON_LOCK} className='input-img-icon' />
+              <Image
+                src='https://img20.360buyimg.com/openfeedback/jfs/t1/276941/4/26814/887/6808e5a0F4ab9a8f8/724a6a494e574979.png'
+                className='input-img-icon'
+              />
               <FormItem
                 name='newPassword'
                 rules={[
@@ -340,7 +343,10 @@ const LoginPage: React.FC = () => {
             </View>
 
             <View className='input-with-icon'>
-              <Image src={ICON_LOCK} className='input-img-icon' />
+              <Image
+                src='https://img20.360buyimg.com/openfeedback/jfs/t1/276941/4/26814/887/6808e5a0F4ab9a8f8/724a6a494e574979.png'
+                className='input-img-icon'
+              />
               <FormItem
                 name='confirmPassword'
                 rules={[
@@ -385,7 +391,12 @@ const LoginPage: React.FC = () => {
                 fill='none'
                 className='social-button wechat-button'
                 onClick={handleWeChatLogin}
-                icon={<Image src={ICON_WECHAT} className='input-img-icon' />}
+                icon={
+                  <Image
+                    src='https://img20.360buyimg.com/openfeedback/jfs/t1/277779/20/26848/1044/6808e575F5957b6de/0e014e2904fe4ef9.png'
+                    className='input-img-icon'
+                  />
+                }
               >
                 微信登录
               </Button>

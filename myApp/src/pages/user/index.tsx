@@ -1,7 +1,8 @@
 import { View } from '@tarojs/components';
 
 import { Tabs } from '@nutui/nutui-react-taro';
-import { useState, useEffect } from 'react';
+import { useAtom } from 'jotai';
+import { useState } from 'react';
 
 import './index.less';
 import { CourseTab } from './components/courseTab';
@@ -11,58 +12,22 @@ import ProfileBg from './components/ProfileBg';
 import ProfileInfo from './components/ProfileInfo';
 
 import { MyEmpty } from '@/components/Empty';
-import { useAtom } from 'jotai';
 import { Gender, userAtom } from '@/store/user';
 
 const Profile = () => {
   const [user, setUser] = useAtom(userAtom);
+  const [tab1value, setTab1value] = useState<string | number>('0');
+  const [tab2value, setTab2value] = useState<string | number>('0');
+
+  // 计算标签
   const extraTags = [
-    user?.extra?.birthday,
+    user?.extra?.age,
+    user?.extra?.constellation,
     user?.extra?.gender === Gender.Unknown ? '' : Gender.Male ? '男' : '女',
     user?.extra?.location
   ].filter(Boolean) as string[];
 
-  const [userBgUrl, setUserBgUrl] = useState<string>(
-    user?.backgroundImage ??
-      'https://img12.360buyimg.com/imagetools/jfs/t1/143702/31/16654/116794/5fc6f541Edebf8a57/4138097748889987.png'
-  );
-  const [tab1value, setTab1value] = useState<string | number>('0');
-  const [tab2value, setTab2value] = useState<string | number>('0');
-
-  // 新增：管理用户信息的 State
-  const [avatarUrl, setAvatarUrl] = useState<string>(
-    user?.avatar ??
-      'https://img12.360buyimg.com/imagetools/jfs/t1/143702/31/16654/116794/5fc6f541Edebf8a57/4138097748889987.png'
-  );
-  const [username, setUsername] = useState<string>(
-    user?.username ?? '请输入用户名'
-  );
-  const [description, setDescription] = useState<string>(
-    user?.desc ?? '输入你的介绍。'
-  );
-  const [tags, setTags] = useState<string[]>([
-    ...extraTags,
-    '添加你的个性标签吧'
-  ]);
-  const [records, setRecords] = useState<
-    { count: number | string; text: string }[]
-  >([
-    { count: 10, text: '通过课程' },
-    { count: 0, text: '完成题库' },
-    { count: 12, text: '收藏' }
-  ]);
-
-  // 可以在 useEffect 中获取用户数据并更新 state
-  useEffect(() => {
-    // fetchUserData().then(data => {
-    //   setUserBgUrl(data.bgImgUrl);
-    //   setAvatarUrl(data.avatarUrl);
-    //   setUsername(data.username);
-    //   setDescription(data.description);
-    //   setTags(data.tags);
-    //   setRecords(data.records);
-    // });
-  }, []);
+  const tags = [...extraTags, '添加你的个性标签吧'];
 
   const collectData = {
     courseList: [
@@ -107,6 +72,19 @@ const Profile = () => {
       }
     ]
   };
+
+  // 计算记录
+  const records = [
+    { count: 0, text: '通过课程' },
+    { count: 0, text: '完成题库' },
+    {
+      count:
+        collectData.postList.length +
+        collectData.courseList.length +
+        collectData.exerciseList.length,
+      text: '收藏'
+    }
+  ];
   const historyData = {
     courseList: [
       {
@@ -151,38 +129,38 @@ const Profile = () => {
     ]
   };
 
-  useEffect(() => {
-    setRecords([
-      { count: 0, text: '通过课程' },
-      { count: 0, text: '完成题库' },
-      {
-        count:
-          collectData.postList.length +
-          collectData.courseList.length +
-          collectData.exerciseList.length,
-        text: '收藏'
-      }
-    ]);
-  }, [collectData]);
-
   const handleBgChange = (newImageUrl: string) => {
     console.log('UserPage updating bg url to:', newImageUrl);
-    setUserBgUrl(newImageUrl);
+    setUser((prev) => ({
+      ...prev,
+      backgroundImage: newImageUrl
+    }));
   };
 
-  // 新增：处理头像更新的回调函数
   const handleAvatarChange = (newAvatarUrl: string) => {
     console.log('UserPage updating avatar url to:', newAvatarUrl);
-    setAvatarUrl(newAvatarUrl);
+    setUser((prev) => ({
+      ...prev,
+      avatar: newAvatarUrl
+    }));
   };
 
   return (
     <View>
-      <ProfileBg bgImgUrl={userBgUrl} onBgChange={handleBgChange} />
+      <ProfileBg
+        bgImgUrl={
+          user?.backgroundImage ??
+          'https://img12.360buyimg.com/imagetools/jfs/t1/143702/31/16654/116794/5fc6f541Edebf8a57/4138097748889987.png'
+        }
+        onBgChange={handleBgChange}
+      />
       <ProfileInfo
-        avatarUrl={avatarUrl}
-        username={username}
-        description={description}
+        avatarUrl={
+          user?.avatar ??
+          'https://img12.360buyimg.com/imagetools/jfs/t1/143702/31/16654/116794/5fc6f541Edebf8a57/4138097748889987.png'
+        }
+        username={user?.username ?? '请输入用户名'}
+        description={user?.desc ?? '输入你的介绍。'}
         tags={tags}
         records={records}
         onAvatarChange={handleAvatarChange}

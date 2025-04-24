@@ -4,9 +4,6 @@ import { Column, Pie, Bar } from "@ant-design/plots"; // 引入需要的图表�
 
 const { Title } = Typography;
 
-// --- 模拟数据 (后续需要替换为真实 API 数据) ---
-
-// 1. 各课程选课情况 (示例)
 const courseEnrollmentData = [
   { courseName: "高等数学", count: 150 },
   { courseName: "计算机基础", count: 200 },
@@ -15,19 +12,16 @@ const courseEnrollmentData = [
   { courseName: "数据结构", count: 180 },
 ];
 
-// 2. 课程完成情况 (示例 - 假设完成/未完成比例)
 const courseCompletionData = [
   { type: "已完成", value: 275 },
   { type: "进行中", value: 450 },
   { type: "未开始", value: 105 },
 ];
 
-// 3. 课程热门排行 (示例 - 按选课人数)
 const coursePopularityData = [...courseEnrollmentData]
   .sort((a, b) => b.count - a.count)
   .slice(0, 5); // 取前5
 
-// 4. 习题完成情况 (示例 - 按正确率或完成数)
 const exerciseCompletionData = [
   { type: "高正确率 (>=80%)", value: 300 },
   { type: "中正确率 (60-80%)", value: 500 },
@@ -35,7 +29,6 @@ const exerciseCompletionData = [
   { type: "未完成", value: 200 },
 ];
 
-// 5. 习题热门排行 (示例 - 按练习次数)
 const exercisePopularityData = [
   { exerciseName: "React 基础测试", count: 500 },
   { exerciseName: "Vue 生命周期", count: 450 },
@@ -43,8 +36,6 @@ const exercisePopularityData = [
   { exerciseName: "CSS 布局挑战", count: 380 },
   { exerciseName: "算法入门-排序", count: 350 },
 ].sort((a, b) => b.count - a.count);
-
-// --- 图表配置 ---
 
 const enrollmentConfig = {
   data: courseEnrollmentData,
@@ -112,7 +103,6 @@ const exercisePopularityConfig = {
   height: 250,
 };
 
-// --- Dashboard 组件 ---
 const DashboardPage: React.FC = () => {
   return (
     <div>

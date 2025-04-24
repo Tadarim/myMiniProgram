@@ -1,4 +1,5 @@
 import { View } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 
 import {
   Button,
@@ -132,13 +133,24 @@ export const PopupRender = ({ visible, onClose, onConfirm }: PopupProps) => {
             type='primary'
             disabled={!(title && description && date)}
             onClick={() => {
+              Taro.addPhoneCalendar({
+                title,
+                description: description,
+                startTime: new Date(`${date[0]} ${startTime}`).getTime(),
+                endTime: new Date(`${date[1]} ${endTime}`).getTime()
+              });
               onConfirm({
                 title,
                 desc: description,
                 time: `${date[0]} ${startTime} - ${date[1]} ${endTime}`,
                 id: Date.now()
               });
-              setTimeout(() => onClose(), 100);
+              setTimeout(() => {
+                setTitle('');
+                setDescription('');
+                setDate([]);
+                onClose();
+              }, 100);
             }}
           >
             添加

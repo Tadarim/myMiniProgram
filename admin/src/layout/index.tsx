@@ -20,7 +20,7 @@ type RouteType = NonIndexRouteObject & {
   icon: React.ReactElement;
 };
 
-const { Header, Content, Footer, Sider } = Layout;
+const { Header, Content, Sider } = Layout;
 
 const BasicLayout: React.FC = () => {
   const [collapsed, setCollapsed] = useState(false);
@@ -83,8 +83,14 @@ const BasicLayout: React.FC = () => {
             height: 32,
             margin: 16,
             background: "rgba(255, 255, 255, 0.2)",
+            color: "#fff",
+            textAlign: "center",
+            lineHeight: "32px",
+            fontSize: "18px",
           }}
-        />
+        >
+          管理后台
+        </div>
         <Menu
           theme="dark"
           defaultSelectedKeys={[pathname]}

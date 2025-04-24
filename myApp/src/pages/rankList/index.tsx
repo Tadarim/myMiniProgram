@@ -1,16 +1,10 @@
 import { View, Text, Image } from '@tarojs/components';
+
 import { Tabs } from '@nutui/nutui-react-taro';
 import { useState } from 'react';
+
 import './index.less';
 import NavigationBar from '@/components/NavigationBar';
-
-interface UserRankItem {
-  id: number;
-  name: string;
-  avatar: string;
-  score: number;
-  rank: number;
-}
 
 interface CourseRankItem {
   id: number;
@@ -28,46 +22,7 @@ interface ExerciseRankItem {
 }
 
 const RankList = () => {
-  const [activeTab, setActiveTab] = useState<'user' | 'course' | 'exercise'>(
-    'user'
-  );
-  const [userRankList] = useState<UserRankItem[]>([
-    {
-      id: 1,
-      name: 'Tom Mark',
-      avatar: 'https://img01.yzcdn.cn/vant/cat.jpeg',
-      score: 13122,
-      rank: 1
-    },
-    {
-      id: 2,
-      name: 'Bruce Alex',
-      avatar: 'https://img01.yzcdn.cn/vant/cat.jpeg',
-      score: 23124,
-      rank: 2
-    },
-    {
-      id: 3,
-      name: 'Chirs Ford',
-      avatar: 'https://img01.yzcdn.cn/vant/cat.jpeg',
-      score: 45631,
-      rank: 3
-    },
-    {
-      id: 4,
-      name: 'Ben Dick',
-      avatar: 'https://img01.yzcdn.cn/vant/cat.jpeg',
-      score: 16341,
-      rank: 4
-    },
-    {
-      id: 5,
-      name: 'Jack Ma',
-      avatar: 'https://img01.yzcdn.cn/vant/cat.jpeg',
-      score: 12453,
-      rank: 5
-    }
-  ]);
+  const [activeTab, setActiveTab] = useState<'course' | 'exercise'>('course');
 
   const [courseRankList] = useState<CourseRankItem[]>([
     { id: 1, title: '软件工程导论', enrollCount: 2341, rank: 1 },
@@ -86,56 +41,18 @@ const RankList = () => {
     { id: 5, title: '计算机网络选择题', completeCount: 765, rank: 5 }
   ]);
 
-  const topOneUser = userRankList.find((user) => user.rank === 1);
-
   return (
     <View className='rankList-page'>
       <NavigationBar title='排行榜' />
 
       <Tabs
         value={activeTab}
-        onChange={(value) =>
-          setActiveTab(value as 'user' | 'course' | 'exercise')
-        }
+        onChange={(value) => setActiveTab(value as 'course' | 'exercise')}
         activeColor='#66a6ff'
         duration={200}
         autoHeight
         activeType='card'
       >
-        <Tabs.TabPane title='用户榜' value='user' className='custom-tab-pane'>
-          <View className='user-rank-container'>
-            <View className='top-user-section'>
-              <View className='top-user-content'>
-                <Image
-                  className='top-user-avatar'
-                  src={topOneUser?.avatar || ''}
-                />
-                <View className='crown-icon'>👑</View>
-                <Text className='top-user-name'>{topOneUser?.name}</Text>
-                <Text className='top-user-score'>{topOneUser?.score}</Text>
-              </View>
-            </View>
-
-            {/* 用户列表 */}
-            <View className='user-list'>
-              {userRankList.slice(1).map((user) => (
-                <View key={user.id} className='user-item'>
-                  <View
-                    className={`rank-number ${
-                      user.rank <= 3 ? `top-${user.rank}` : ''
-                    }`}
-                  >
-                    {user.rank}
-                  </View>
-                  <Image className='user-avatar' src={user.avatar} />
-                  <Text className='user-name'>{user.name}</Text>
-                  <Text className='user-score'>{user.score}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        </Tabs.TabPane>
-
         <Tabs.TabPane title='课程榜' value='course' className='custom-tab-pane'>
           {/* 课程榜内容 */}
           <View className='course-rank-container'>

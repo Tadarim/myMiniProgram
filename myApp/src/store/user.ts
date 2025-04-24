@@ -17,8 +17,10 @@ export interface UserInfo {
   extra?: {
     gender: Gender;
     birthday: string;
-    location: string;
+    location: string[];
     school: string;
+    age: string;
+    constellation: string;
   };
 }
 

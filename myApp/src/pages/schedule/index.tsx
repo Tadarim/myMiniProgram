@@ -56,7 +56,6 @@ const Schedule: React.FC = () => {
   };
 
   const addHandler = (item: ScheduleItem) => {
-    console.log('xxy', item);
     setScheduleList((prevList) => [...prevList, item]);
   };
 

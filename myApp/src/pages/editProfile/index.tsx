@@ -1,5 +1,5 @@
 import { View, Text, Input, Button } from '@tarojs/components';
-import { useRouter } from '@tarojs/taro';
+import { useRouter, navigateBack } from '@tarojs/taro';
 
 import {
   Avatar,
@@ -10,23 +10,25 @@ import {
   Cascader,
   CascaderOption
 } from '@nutui/nutui-react-taro';
+import { useAtom } from 'jotai';
 import { useEffect, useState } from 'react';
 
 import { fetchLocation, fetchBirthDayExtra } from '@/api';
 import NavigationBar from '@/components/NavigationBar';
+import { Gender, userAtom } from '@/store/user';
+
 import './index.less';
 
 const EditProfile = () => {
   const router = useRouter();
 
+  const [user, setUser] = useAtom(userAtom);
+
   // --- 状态管理 ---
-  const [avatarUrl, setAvatarUrl] = useState(/* ... initial value ... */);
-  const [bgImageUrl, setBgImageUrl] = useState(
-    'https://via.placeholder.com/400x200?text=Background'
-  );
-  const [username, setUsername] = useState('用户不存在');
-  const [description, setDescription] = useState('');
-  const [gender, setGender] = useState('保密');
+  const [avatarUrl, setAvatarUrl] = useState(user?.avatar);
+  const [username, setUsername] = useState(user?.username);
+  const [description, setDescription] = useState(user?.desc);
+  const [gender, setGender] = useState<Gender | undefined>(user?.extra?.gender);
   const defaultBirthday = new Date();
   const [birthdayDesc, setBirthdayDesc] = useState({
     birthday: `${defaultBirthday.getFullYear()}-${
@@ -36,16 +38,20 @@ const EditProfile = () => {
     constellation: '金牛座'
   });
 
-  const [location, setLocation] = useState(['陕西', '西安']); // 使用数组存储省市
+  const [location, setLocation] = useState(['']); // 使用数组存储省市
   const [locationOptions, setLocationOptions] = useState(['陕西', '西安']); // 使用数组存储省市
 
-  const [school, setSchool] = useState('');
+  const [school, setSchool] = useState(user?.extra?.school);
 
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showGenderPicker, setShowGenderPicker] = useState(false);
 
-  const genderOptions = [{ name: '男' }, { name: '女' }, { name: '保密' }];
+  const genderOptions = [
+    { name: '男', value: Gender.Male },
+    { name: '女', value: Gender.Female },
+    { name: '保密', value: Gender.Unknown }
+  ];
 
   const transformData = (data) => {
     return data.map((province) => ({
@@ -56,6 +62,26 @@ const EditProfile = () => {
         text: city.name
       }))
     }));
+  };
+
+  const handleSave = () => {
+    setUser({
+      ...user,
+      avatar: avatarUrl,
+      username,
+      desc: description,
+      extra: {
+        ...user?.extra,
+        gender,
+        location,
+        school,
+        birthday: birthdayDesc.birthday,
+        age: `${birthdayDesc.age}岁`,
+        constellation: birthdayDesc.constellation
+      }
+    });
+
+    navigateBack();
   };
 
   useEffect(() => {
@@ -113,7 +139,13 @@ const EditProfile = () => {
       />
       <Cell
         title='性别'
-        description={gender}
+        description={
+          gender === Gender.Unknown
+            ? '保密'
+            : gender === Gender.Male
+            ? '男'
+            : '女'
+        }
         onClick={() => setShowGenderPicker(true)}
       />
       <Cell
@@ -141,7 +173,7 @@ const EditProfile = () => {
       />
       <Cell
         title='所在地'
-        description={location.join('·')}
+        description={location?.join('·')}
         onClick={() => setShowLocationPicker(true)}
       />
 
@@ -183,7 +215,7 @@ const EditProfile = () => {
         visible={showGenderPicker}
         options={genderOptions}
         onSelect={(item) => {
-          setGender(item.name as string);
+          setGender(item.value as Gender);
           setShowGenderPicker(false);
         }}
         onCancel={() => setShowGenderPicker(false)}
@@ -192,11 +224,7 @@ const EditProfile = () => {
 
       {/* 可以添加保存按钮 */}
       <View style={{ padding: '10px 16px' }}>
-        <Button
-          type='primary'
-          className='save-btn'
-          /* onClick={handleSave} */
-        >
+        <Button type='primary' className='save-btn' onClick={handleSave}>
           保存
         </Button>
       </View>

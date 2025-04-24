@@ -1,6 +1,6 @@
 export default defineAppConfig({
   pages: [
-    'pages/login/index', 
+    'pages/login/index',
     'pages/index/index',
     'pages/user/index',
     'pages/chatRoom/index',
@@ -53,5 +53,6 @@ export default defineAppConfig({
     ],
     color: '#2c2c2c',
     selectedColor: '#09AAFF'
-  }
+  },
+  lazyCodeLoading: 'requiredComponents'
 });

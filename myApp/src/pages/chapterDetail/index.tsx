@@ -19,7 +19,8 @@ const ChapterDetail = () => {
   // 将文档信息改为数组结构
   const [chapterData, setChapterData] = useState({
     videoUrl: 'https://media.w3.org/2010/05/sintel/trailer.mp4', // 示例视频 URL
-    documents: [ // 使用 documents 数组
+    documents: [
+      // 使用 documents 数组
       {
         id: 1, // 添加唯一标识符
         name: '课程讲义.pdf',
@@ -45,8 +46,8 @@ const ChapterDetail = () => {
   // 修改 handleDownload 以接受文档对象
   const handleDownload = (document: { name: string; url: string | null }) => {
     if (!document.url || document.url.startsWith('wxfile://')) {
-       showToast({ title: '文件无法下载或查看', icon: 'none' });
-       return;
+      showToast({ title: '文件无法下载或查看', icon: 'none' });
+      return;
     }
     showLoading({ title: '下载中...' });
     downloadFile({
@@ -91,7 +92,11 @@ const ChapterDetail = () => {
         if (tempFile) {
           console.log('选择的文件信息:', tempFile);
           // 修改提示信息
-          showToast({ title: '上传成功，等待审核', icon: 'none', duration: 2000 });
+          showToast({
+            title: '上传成功，等待审核',
+            icon: 'none',
+            duration: 2000
+          });
 
           // 创建新的文档对象
           const newDocument = {
@@ -190,10 +195,9 @@ const ChapterDetail = () => {
     }
   };
 
-
   return (
     <View className='chapter-detail'>
-      <NavigationBar title={'章节详情'} />
+      <NavigationBar title='章节详情' />
 
       <View className='content-section'>
         <Text className='section-title'>章节视频</Text>
@@ -217,11 +221,13 @@ const ChapterDetail = () => {
           chapterData.documents.map((doc) => (
             <View key={doc.id} className='document-section'>
               <View className='document-info'>
-                <Text className='document-icon'>{getDocumentIconText(doc.name)}</Text>
+                <Text className='document-icon'>
+                  {getDocumentIconText(doc.name)}
+                </Text>
                 <Text className='document-name'>{doc.name}</Text>
                 {/* 显示待审核状态 */}
                 {doc.status === 'pending' && (
-                   <Text className='document-status'>(待审核)</Text>
+                  <Text className='document-status'>(待审核)</Text>
                 )}
               </View>
               <Button

@@ -1,8 +1,6 @@
-import React, { ChangeEvent } from "react";
+import React from "react";
 import { Avatar, Dropdown, MenuProps, Space } from "antd";
 import { useLoginStore } from "@stores/index";
-import { debounce } from "@utils/func";
-import styles from "../index.module.scss";
 
 const RightContent: React.FC = () => {
   const { setUserInfo } = useLoginStore();
@@ -19,7 +17,6 @@ const RightContent: React.FC = () => {
       label: "个人中心",
     },
   ];
-
 
   return (
     <Space size={20}>

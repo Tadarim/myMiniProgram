@@ -1,12 +1,5 @@
 import React, { useState } from "react";
-import {
-  AlipayOutlined,
-  LockOutlined,
-  MobileOutlined,
-  TaobaoOutlined,
-  UserOutlined,
-  WeiboOutlined,
-} from "@ant-design/icons";
+import { LockOutlined, MobileOutlined, UserOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import {
   LoginFormPage,
@@ -14,18 +7,10 @@ import {
   ProFormCheckbox,
   ProFormText,
 } from "@ant-design/pro-components";
-import { Button, Divider, message, Space, Tabs } from "antd";
-import type { CSSProperties } from "react";
+import { Divider, message, Tabs } from "antd";
 import { useLoginStore } from "@stores/index";
 
 type LoginType = "phone" | "account";
-
-const iconStyles: CSSProperties = {
-  color: "rgba(0, 0, 0, 0.2)",
-  fontSize: "18px",
-  verticalAlign: "middle",
-  cursor: "pointer",
-};
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -61,21 +46,6 @@ const Login = () => {
             borderRadius: 8,
             backgroundColor: "#1677FF",
           },
-          // title: "活动标题，可配置图片",
-          // subTitle: "活动介绍说明文字",
-          // action: (
-          //   <Button
-          //     size="large"
-          //     style={{
-          //       borderRadius: 20,
-          //       background: "#fff",
-          //       color: "#1677FF",
-          //       width: 120,
-          //     }}
-          //   >
-          //     去看看
-          //   </Button>
-          // ),
         }}
         actions={
           <div
