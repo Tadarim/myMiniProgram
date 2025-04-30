@@ -5,7 +5,6 @@ import React, { CSSProperties } from 'react';
 import styles from './index.module.less';
 import ListItem from './ListItem';
 
-// 枚举类型
 enum TagType {
   Primary = 0,
   Success = 1,
@@ -20,7 +19,7 @@ interface ListProps {
     cover?: string;
     tag?: { content: string; type: TagType };
   }>;
-  onItemClick: (item: any) => void;
+  onItemClick?: (item: any) => void;
   itemSuffix?: () => React.ReactElement | null;
   itemStyle?: CSSProperties;
 }

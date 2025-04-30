@@ -10,9 +10,12 @@ import {
   Cell,
   FormItem
 } from '@nutui/nutui-react-taro';
+import { useSetAtom } from 'jotai';
 import React, { useState, useEffect, useRef } from 'react';
 
-import NavigationBar from '@/components/NavigationBar';
+import { authService } from '@/api/auth';
+import NavigationBar from '@/components/navigationBar';
+import { userAtom } from '@/store/user';
 
 import './index.less';
 
@@ -23,12 +26,13 @@ const LoginPage: React.FC = () => {
   const [forgotPasswordForm] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [mode, setMode] = useState<PageMode>('login');
-  // 新增：验证码发送按钮状态
   const [codeLoading, setCodeLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
-  const timerRef = useRef<NodeJS.Timeout | null>(null); // 用于存储定时器
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [toastVisible, setToastVisible] = useState(false);
 
-  // 清理定时器
+  const setUserInfo = useSetAtom(userAtom);
+
   useEffect(() => {
     return () => {
       if (timerRef.current) {
@@ -37,141 +41,131 @@ const LoginPage: React.FC = () => {
     };
   }, []);
 
+  const showToast = (title: string) => {
+    if (toastVisible) return;
+    setToastVisible(true);
+    Toast.show('toast-login', {
+      title,
+      onClose: () => {
+        setToastVisible(false);
+      }
+    });
+  };
+
   const handleLoginRegister = async (values) => {
     setLoading(true);
-    console.log('Login/Register Form values:', values);
     const { account, password } = values;
-    try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      Toast.show('toast-login', {
-        type: 'success',
-        title: '登录成功',
-        duration: 1000
-      });
 
-      setTimeout(() => {
-        Taro.switchTab({ url: '/pages/index/index' });
-      }, 1500);
+    try {
+      const { data, success } = await authService.loginWithEmail(
+        account,
+        password
+      );
+
+      if (success) {
+        Taro.setStorageSync('token', data.token);
+        Taro.setStorageSync('userInfo', data.user);
+        setUserInfo(data.user);
+
+        showToast('登录成功');
+
+        setTimeout(() => {
+          Taro.switchTab({ url: '/pages/index/index' });
+        }, 1500);
+      } else {
+        throw new Error('登录失败');
+      }
     } catch (error) {
       console.error('Login/Register failed:', error);
-      Toast.show('toast-login', {
-        type: 'fail',
-        title: '登录或注册失败，请重试',
-        duration: 2000
-      });
+      showToast('登录或注册失败，请重试');
     } finally {
       setLoading(false);
     }
   };
 
-  // 修改：发送验证码逻辑
   const handleSendVerificationCode = async () => {
-    // 校验邮箱字段
     try {
-      await forgotPasswordForm.validateFields(['email']); // 只校验 email
+      await forgotPasswordForm.validateFields(['email']);
       const email = forgotPasswordForm.getFieldValue('email');
-      console.log('Requesting verification code for:', email);
 
       if (email) {
-        setCodeLoading(true); // 开始加载
+        setCodeLoading(true);
+        const response = await authService.sendVerificationCode(email);
 
-        // --- 模拟发送验证码 API 调用 ---
-        await new Promise((resolve) => setTimeout(resolve, 1000));
+        if (response.success) {
+          showToast('验证码已发送');
 
-        Toast.show('toast-login', {
-          type: 'success',
-          title: '验证码已发送',
-          duration: 1500
-        });
-
-        // 开始倒计时
-        setCountdown(60);
-        timerRef.current = setInterval(() => {
-          setCountdown((prev) => {
-            if (prev <= 1) {
-              clearInterval(timerRef.current!);
-              timerRef.current = null;
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
+          setCountdown(60);
+          timerRef.current = setInterval(() => {
+            setCountdown((prev) => {
+              if (prev <= 1) {
+                clearInterval(timerRef.current!);
+                timerRef.current = null;
+                return 0;
+              }
+              return prev - 1;
+            });
+          }, 1000);
+        }
       }
     } catch (errorInfo) {
-      // 校验失败或 API 调用失败
       console.error('Send code failed:', errorInfo);
-      // 如果是校验失败，NutUI 会自动显示错误信息，这里可以只处理 API 错误
       if (!errorInfo.errorFields) {
-        // 假设 API 错误不是校验错误格式
-        Toast.show('toast-login', {
-          type: 'fail',
-          title: '验证码发送失败',
-          duration: 2000
-        });
+        showToast('验证码发送失败');
       }
     } finally {
-      setCodeLoading(false); // 结束加载
+      setCodeLoading(false);
     }
   };
 
   const handleResetPasswordSubmit = async (values) => {
-    setLoading(true); // 主按钮 loading
+    setLoading(true);
     const { email, verificationCode, newPassword } = values;
-    console.log(
-      'Resetting password for:',
-      email,
-      'with code:',
-      verificationCode
-    );
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // 模拟网络请求
+      const response = await authService.resetPassword(
+        email,
+        verificationCode,
+        newPassword
+      );
 
-      Toast.show('toast-login', {
-        type: 'success',
-        title: '密码重置成功',
-        duration: 1000
-      });
+      if (response.success) {
+        showToast('密码重置成功');
 
-      setTimeout(() => {
-        setMode('login');
-      }, 1500);
+        setTimeout(() => {
+          setMode('login');
+        }, 1500);
+      }
     } catch (error) {
       console.error('Password reset failed:', error);
-      Toast.show('toast-login', {
-        type: 'fail',
-        title: '密码重置失败，请重试', // 可能验证码错误或超时
-        duration: 2000
-      });
+      showToast('密码重置失败，请重试');
     } finally {
       setLoading(false);
     }
   };
 
-  // 微信登录处理函数
   const handleWeChatLogin = async () => {
-    setLoading(true); // 可以考虑为微信登录设置独立的 loading 状态
+    setLoading(true);
     try {
-      // --- 在这里实现调用微信登录 API 的逻辑 ---
-      // 例如：Taro.login(), 然后将 code 发送到后端换取用户信息和 token
-      await new Promise((resolve) => setTimeout(resolve, 1500)); // 模拟异步操作
+      const { code } = await Taro.login();
+      const { data, success } = await authService.loginWithWeChat(code);
 
-      Toast.show('toast-login', {
-        type: 'success',
-        title: '微信登录成功',
-        duration: 1000
-      });
+      if (success) {
+        Taro.setStorageSync('token', data.token);
+        Taro.setStorageSync('userInfo', data.user);
+        setUserInfo(data.user);
 
-      setTimeout(() => {
-        Taro.switchTab({ url: '/pages/index/index' });
-      }, 1500);
+        showToast('微信登录成功');
+
+        setTimeout(() => {
+          Taro.switchTab({ url: '/pages/index/index' });
+        }, 1500);
+      } else {
+        throw new Error('微信登录失败');
+      }
     } catch (error) {
       console.error('WeChat Login failed:', error);
-      Toast.show('toast-login', {
-        type: 'fail',
-        title: '微信登录失败，请重试',
-        duration: 2000
-      });
+      showToast('微信登录失败，请重试');
     } finally {
       setLoading(false);
     }
@@ -186,7 +180,7 @@ const LoginPage: React.FC = () => {
     } else {
       loginForm.resetFields();
     }
-    // 切换模式时清除倒计时
+
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -206,10 +200,9 @@ const LoginPage: React.FC = () => {
 
       <View className='login-form-container'>
         <Text className='welcome-title'>
-          {mode === 'login' ? '欢迎回来!' : '找回您的密码'}
+          {mode === 'login' ? '欢迎回来!' : '找回密码'}
         </Text>
 
-        {/* 登录模式表单 (保持不变) */}
         {mode === 'login' && (
           <Form
             form={loginForm}
@@ -262,7 +255,6 @@ const LoginPage: React.FC = () => {
           </Form>
         )}
 
-        {/* 找回密码模式表单 (修正结构) */}
         {mode === 'forgotPassword' && (
           <Form
             form={forgotPasswordForm}
@@ -272,16 +264,13 @@ const LoginPage: React.FC = () => {
                 nativeType='submit'
                 type='primary'
                 block
-                loading={loading} // 使用主 loading 状态
-                className='login-button' // 复用样式
+                loading={loading}
+                className='login-button'
               >
-                重置密码 {/* 修改按钮文字 */}
+                重置密码
               </Button>
             }
           >
-            {/* 邮箱输入框 (恢复为普通带图标样式) */}
-
-            {/* 使用 input-with-icon */}
             <View className='input-with-icon'>
               <Mail className='input-icon' />
               <FormItem
@@ -295,7 +284,6 @@ const LoginPage: React.FC = () => {
               </FormItem>
             </View>
 
-            {/* 使用 input-with-button */}
             <View className='input-with-button'>
               <FormItem
                 name='verificationCode'
@@ -305,7 +293,7 @@ const LoginPage: React.FC = () => {
                 ]}
               >
                 <Input
-                  className='input-field verification-code-input' // 这个类名可能不再需要特别处理宽度，flex:1 即可
+                  className='input-field verification-code-input'
                   placeholder='邮箱验证码'
                 />
               </FormItem>
@@ -357,7 +345,6 @@ const LoginPage: React.FC = () => {
                     message: '两次输入的密码不一致'
                   }
                 ]}
-                dependencies={['newPassword']} // 声明依赖 newPassword 字段
               >
                 <Input
                   className='input-field'

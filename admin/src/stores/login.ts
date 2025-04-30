@@ -1,18 +1,26 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-type Info = Record<string, any> | null;
+export interface UserInfo {
+  id: number;
+  username: string;
+  role: string;
+}
 
 interface LoginState {
-  userInfo: Info;
-  setUserInfo: (info: Info) => void;
+  userInfo: UserInfo | null;
+  token: string | null;
+  setUserInfo: (info: UserInfo | null) => void;
+  setToken: (token: string) => void;
 }
 
 const useLoginStore = create<LoginState>()(
   persist(
     (set) => ({
       userInfo: null,
-      setUserInfo: (info) => set(() => ({ userInfo: info })),
+      token: null,
+      setUserInfo: (info) => set({ userInfo: info }),
+      setToken: (token) => set({ token }),
     }),
     {
       name: "userInfo",

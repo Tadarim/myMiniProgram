@@ -5,51 +5,57 @@ import { Star, StarFill } from '@nutui/icons-react-taro';
 import { Rate } from '@nutui/nutui-react-taro';
 import { useEffect, useState } from 'react';
 
-import List from '@/components/List';
-import NavigationBar from '@/components/NavigationBar';
-import Title from '@/components/Title';
+import { courseService } from '@/api/course';
+import List from '@/components/list';
+import NavigationBar from '@/components/navigationBar';
+import Title from '@/components/title';
+import { Course, Chapter } from '@/types/course';
+import { genUrl } from '@/utils';
 
 import './index.less';
 
 const CourseDetail = () => {
   const router = useRouter();
-  const [courseInfo, setCourseInfo] = useState({
+  const [courseInfo, setCourseInfo] = useState<Course>({
+    id: 0,
     title: '',
     cover: '',
-    description:
-      '能说出这种话的男人，确实给了我朋友答案！但是这个话男友突然放松对我朋友说出 "现在答你" 四个字，这就有点尴尬了人了，不想男友答案的话就过了这山万水，穿过恶鬼绕路，都是想来到朋友面前说的吗？下次就不要了哦，还在分手中什么都还要你说，答案给了下个朋友回应。',
-    chapters: [
-      { title: '第一章：软件工程概述', desc: '思考，感悟' },
-      { title: '第二章：软件过程', desc: '实践，敬业' },
-      { title: '第三章：软件需求', desc: '思考，感悟' },
-      { title: '第四章：软件设计', desc: '思考，感悟' }
-    ],
-    rating: 4.5, // 课程的平均/初始评分
-    isCollected: false,
-    chatId: parseInt(router.params.id || '1', 10) + 100
+    description: '',
+    chapters: [],
+    rating: 0,
+    isCollected: false
   });
 
   const [isCollected, setIsCollected] = useState(courseInfo.isCollected);
   const [userRating, setUserRating] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const courseId = router.params.id; // 获取课程 ID
-    const title = router.params.title;
-    const cover = router.params.cover;
+    const fetchCourseDetail = async () => {
+      try {
+        const courseId = router.params.id;
+        if (!courseId) return;
 
-    if (title && cover) {
-      setCourseInfo((prev) => ({
-        ...prev,
-        title: decodeURIComponent(title),
-        cover: decodeURIComponent(cover),
-        // !! 在这里根据 courseId 设置 chatId !!
-        chatId: parseInt(courseId || '1', 10) + 100 // 确保 chatId 更新
-      }));
-    }
-    // !! 初始化 isCollected 状态 !!
-    // 假设 courseInfo.isCollected 是从 API 获取的初始状态
-    // setIsCollected(fetchedCourseInfo.isCollected);
-  }, [router.params]);
+        const response = await courseService.getCourseDetail(Number(courseId));
+        if (response.code === 200 && response.data) {
+          setCourseInfo((prev) => ({
+            ...prev,
+            ...response.data
+          }));
+        }
+      } catch (error) {
+        console.error('获取课程详情失败:', error);
+        showToast({
+          title: '获取课程详情失败',
+          icon: 'none'
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCourseDetail();
+  }, [router.params.id]);
 
   const handleFavoriteToggle = () => {
     const newFavoriteStatus = !isCollected;
@@ -66,29 +72,22 @@ const CourseDetail = () => {
     setUserRating(value);
   };
 
-  const handleChapterClick = (chapter: { title: string; desc?: string }) => {
-    // 跳转到章节详情页，传递章节标题作为参数
+  const handleChapterClick = (chapter: Chapter) => {
     Taro.navigateTo({
-      url: `/pages/chapterDetail/index?title=${encodeURIComponent(
-        chapter.title
-      )}`
+      url: genUrl('/pages/chapterDetail/index', {
+        chapter: JSON.stringify(chapter)
+      })
     });
   };
 
-  // !! 新增：处理进入群聊的函数 !!
-  const handleGoToGroupChat = () => {
-    // 确保 courseInfo 和 chatId 存在
-    if (courseInfo && courseInfo.chatId) {
-      Taro.navigateTo({
-        // 跳转到聊天室页面，传递群聊 ID 和名称
-        url: `/pages/chatRoom/index?id=${
-          courseInfo.chatId
-        }&name=${encodeURIComponent(courseInfo.title + ' 交流群')}`
-      });
-    } else {
-      showToast({ title: '无法找到课程群聊信息', icon: 'none' });
-    }
-  };
+  if (isLoading) {
+    return (
+      <View className='course-detail'>
+        <NavigationBar title='课程详情' />
+        <View className='loading'>加载中...</View>
+      </View>
+    );
+  }
 
   return (
     <View className='course-detail'>
@@ -98,17 +97,14 @@ const CourseDetail = () => {
           src={courseInfo.cover}
           mode='aspectFill'
         />
-        <NavigationBar
-          title={decodeURIComponent(router.params.title || '课程详情')}
-          useOpacity
-        />
+        <NavigationBar title={courseInfo.title || '课程详情'} useOpacity />
         <View className='course-info'>
           <Text className='course-title'>{courseInfo.title}</Text>
           <View className='favorite-button' onClick={handleFavoriteToggle}>
             {isCollected ? (
-              <StarFill color='gold' size={24} /> // 已收藏
+              <StarFill color='gold' size={24} />
             ) : (
-              <Star color='#fff' size={24} /> // 未收藏
+              <Star color='#fff' size={24} />
             )}
           </View>
         </View>
@@ -123,7 +119,6 @@ const CourseDetail = () => {
               value={userRating ?? courseInfo.rating}
               allowHalf
               size={18}
-              color='gold'
               onChange={handleRatingChange}
             />
           </View>
@@ -137,11 +132,6 @@ const CourseDetail = () => {
           contentList={courseInfo.chapters}
           onItemClick={handleChapterClick}
         />
-      </View>
-
-      <View className='group-chat-entry' onClick={handleGoToGroupChat}>
-        <Text className='group-chat-text'>进入课程群聊</Text>
-        <Text className='group-chat-arrow'>&gt;</Text>
       </View>
     </View>
   );

@@ -8,14 +8,17 @@ import {
   ActionSheet,
   TextArea,
   Cascader,
-  CascaderOption
+  CascaderOption,
+  Toast
 } from '@nutui/nutui-react-taro';
 import { useAtom } from 'jotai';
 import { useEffect, useState } from 'react';
 
 import { fetchLocation, fetchBirthDayExtra } from '@/api';
-import NavigationBar from '@/components/NavigationBar';
-import { Gender, userAtom } from '@/store/user';
+import { authService } from '@/api/auth';
+import NavigationBar from '@/components/navigationBar';
+import { userAtom } from '@/store/user';
+import { Gender, UserInfo } from '@/types/user';
 
 import './index.less';
 
@@ -24,22 +27,18 @@ const EditProfile = () => {
 
   const [user, setUser] = useAtom(userAtom);
 
-  // --- 状态管理 ---
   const [avatarUrl, setAvatarUrl] = useState(user?.avatar);
   const [username, setUsername] = useState(user?.username);
   const [description, setDescription] = useState(user?.desc);
   const [gender, setGender] = useState<Gender | undefined>(user?.extra?.gender);
-  const defaultBirthday = new Date();
   const [birthdayDesc, setBirthdayDesc] = useState({
-    birthday: `${defaultBirthday.getFullYear()}-${
-      defaultBirthday.getMonth() + 1
-    }-${defaultBirthday.getDate()}`,
-    age: 0,
-    constellation: '金牛座'
+    birthday: user?.extra?.birthday,
+    age: user?.extra?.age,
+    constellation: user?.extra?.constellation
   });
 
-  const [location, setLocation] = useState(['']); // 使用数组存储省市
-  const [locationOptions, setLocationOptions] = useState(['陕西', '西安']); // 使用数组存储省市
+  const [location, setLocation] = useState(['']);
+  const [locationOptions, setLocationOptions] = useState(['陕西', '西安']);
 
   const [school, setSchool] = useState(user?.extra?.school);
 
@@ -48,9 +47,9 @@ const EditProfile = () => {
   const [showGenderPicker, setShowGenderPicker] = useState(false);
 
   const genderOptions = [
-    { name: '男', value: Gender.Male },
-    { name: '女', value: Gender.Female },
-    { name: '保密', value: Gender.Unknown }
+    { name: '男', value: Gender.Male as unknown as string },
+    { name: '女', value: Gender.Female as unknown as string },
+    { name: '保密', value: Gender.Unknown as unknown as string }
   ];
 
   const transformData = (data) => {
@@ -64,28 +63,52 @@ const EditProfile = () => {
     }));
   };
 
-  const handleSave = () => {
-    setUser({
-      ...user,
-      avatar: avatarUrl,
-      username,
-      desc: description,
-      extra: {
-        ...user?.extra,
-        gender,
-        location,
-        school,
-        birthday: birthdayDesc.birthday,
-        age: `${birthdayDesc.age}岁`,
-        constellation: birthdayDesc.constellation
-      }
-    });
+  const handleSave = async () => {
+    try {
+      console.log('birthdayDesc', birthdayDesc);
+      const updatedUserInfo: Partial<UserInfo> = {
+        ...user,
+        avatar: avatarUrl || '',
+        username: username || '',
+        desc: description || '',
+        extra: {
+          ...user?.extra,
+          gender: gender || Gender.Unknown,
+          location: location || [],
+          school: school || '',
+          birthday: birthdayDesc.birthday || '',
+          age: birthdayDesc.age ? `${birthdayDesc.age}岁` : '',
+          constellation: birthdayDesc.constellation || ''
+        }
+      };
 
-    navigateBack();
+      const { success, data } = await authService.updateUserInfo(
+        updatedUserInfo
+      );
+      console.log('data', data);
+
+      if (success) {
+        setUser(data);
+        Toast.show('toast-edit', {
+          title: '保存成功',
+          duration: 1000
+        });
+        setTimeout(() => {
+          navigateBack();
+        }, 1500);
+      } else {
+        throw new Error('保存失败');
+      }
+    } catch (error) {
+      console.error('Save profile failed:', error);
+      Toast.show('toast-edit', {
+        title: '保存失败，请重试',
+        duration: 2000
+      });
+    }
   };
 
   useEffect(() => {
-    // 使用 async 函数来处理异步请求
     const fetchData = async () => {
       try {
         const response = await fetchLocation();
@@ -153,9 +176,11 @@ const EditProfile = () => {
         description={
           <>
             {birthdayDesc.birthday}
-            <Text style={{ marginLeft: '5px' }}>
-              {`（${birthdayDesc.age}岁 · ${birthdayDesc.constellation}）`}
-            </Text>
+            {birthdayDesc.birthday && (
+              <Text style={{ marginLeft: '5px' }}>
+                {`（${birthdayDesc.age}岁 · ${birthdayDesc.constellation}）`}
+              </Text>
+            )}
           </>
         }
         onClick={() => setShowDatePicker(true)}
@@ -198,7 +223,6 @@ const EditProfile = () => {
         }}
       />
 
-      {/* 所在地选择 */}
       <Cascader
         visible={showLocationPicker}
         options={locationOptions as CascaderOption[]}
@@ -210,19 +234,17 @@ const EditProfile = () => {
         onClose={() => setShowLocationPicker(false)}
       />
 
-      {/* 性别选择 */}
       <ActionSheet
         visible={showGenderPicker}
         options={genderOptions}
         onSelect={(item) => {
-          setGender(item.value as Gender);
+          setGender(item.value as unknown as Gender);
           setShowGenderPicker(false);
         }}
         onCancel={() => setShowGenderPicker(false)}
         cancelText='取消'
       />
 
-      {/* 可以添加保存按钮 */}
       <View style={{ padding: '10px 16px' }}>
         <Button type='primary' className='save-btn' onClick={handleSave}>
           保存

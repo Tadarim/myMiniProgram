@@ -6,12 +6,12 @@ import {
   Checkbox,
   CheckboxGroup
 } from '@tarojs/components';
-import Taro, { showToast, useRouter } from '@tarojs/taro';
+import { showToast, useRouter } from '@tarojs/taro';
 
 import { Star, StarFill } from '@nutui/icons-react-taro';
 import React, { useState, useEffect } from 'react';
 
-import NavigationBar from '@/components/NavigationBar'; // 确保引入 NavigationBar
+import NavigationBar from '@/components/navigationBar';
 import './index.less';
 
 const questions = [
@@ -63,7 +63,6 @@ const questions = [
   }
 ];
 
-// 在组件中使用
 const ExerciseDetail: React.FC = () => {
   const router = useRouter();
 
@@ -72,17 +71,12 @@ const ExerciseDetail: React.FC = () => {
   const [answers, setAnswers] = useState<string[][]>(
     Array(questions.length).fill([])
   );
-  // 新增：收藏状态
-  const [isCollected, setIsCollected] = useState(false); // 初始为未收藏
+  const [isCollected, setIsCollected] = useState(false);
 
-  // 修改 handleSingleSelect 来接收 value 参数，并处理点击逻辑
   const handleSingleSelect = (value: string) => {
-    // 检查点击的是否是当前已选中的选项
     if (selectedAnswer.length > 0 && selectedAnswer[0] === value) {
-      // 如果是，则清空选项（取消选择）
       setSelectedAnswer([]);
     } else {
-      // 如果不是，则选中新选项
       setSelectedAnswer([value]);
     }
   };
@@ -92,12 +86,10 @@ const ExerciseDetail: React.FC = () => {
   };
 
   const handleNext = () => {
-    // 保存当前答案 (即使未选择也保存空数组)
     const newAnswers = [...answers];
     newAnswers[currentIndex - 1] = selectedAnswer;
     setAnswers(newAnswers);
 
-    // 检查是否选择了答案 (可以在这里提示)
     if (!selectedAnswer.length && currentIndex < totalQuestions) {
       showToast({ title: '请选择答案', icon: 'none' });
       return;
@@ -105,46 +97,31 @@ const ExerciseDetail: React.FC = () => {
 
     if (currentIndex < totalQuestions) {
       setCurrentIndex((prev) => prev + 1);
-      // 切换到下一题时，加载该题已保存的答案
-      // 注意：因为 setCurrentIndex 是异步的，直接用 currentIndex + 1 获取下一题索引
       setSelectedAnswer(newAnswers[currentIndex] || []);
     } else {
-      // 在提交前确保最后一题答案已保存
-      handleSubmit(newAnswers); // 传递最新的答案数组
+      handleSubmit(newAnswers);
     }
   };
 
-  // 新增：处理上一题
   const handlePrev = () => {
     if (currentIndex > 1) {
-      // 保存当前题目的答案（可选，但推荐，以防用户来回切换未保存）
       const newAnswers = [...answers];
       newAnswers[currentIndex - 1] = selectedAnswer;
       setAnswers(newAnswers);
 
-      // 切换到上一题
       setCurrentIndex((prev) => prev - 1);
-      // 加载上一题已保存的答案
-      // 注意：因为 setCurrentIndex 是异步的，直接用 currentIndex - 1 获取上一题索引
       setSelectedAnswer(newAnswers[currentIndex - 2] || []);
     }
   };
 
-  // 修改 handleSubmit 接收答案数组
   const handleSubmit = (finalAnswers: string[][]) => {
-    // 不再需要从 state 读取最后一题答案，因为已在 handleNext 中保存
-    // const finalAnswers = [...answers];
-    // finalAnswers[currentIndex - 1] = selectedAnswer;
     console.log('提交答案:', finalAnswers);
-    // TODO: 调用提交接口
   };
 
-  // 每次切换题目时，加载已保存的答案 (这个 useEffect 可以保留，作为后备)
   useEffect(() => {
     setSelectedAnswer(answers[currentIndex - 1] || []);
-  }, [currentIndex, answers]); // 添加 answers 依赖
+  }, [currentIndex, answers]);
 
-  // 新增：收藏按钮点击处理
   const handleCollectToggle = () => {
     const newCollectStatus = !isCollected;
     setIsCollected(newCollectStatus);
@@ -154,7 +131,6 @@ const ExerciseDetail: React.FC = () => {
       icon: 'success',
       duration: 1500
     });
-    // TODO: 调用 API 更新收藏状态 (可能需要传递练习题集的 ID)
     console.log('练习题集收藏状态:', newCollectStatus);
   };
 
@@ -214,7 +190,6 @@ const ExerciseDetail: React.FC = () => {
       </View>
 
       <View className='question-footer'>
-        {/* 进度点保持在上方 */}
         <View className='progress-dots'>
           {Array.from({ length: totalQuestions }).map((_, index) => (
             <Text

@@ -1,10 +1,9 @@
-import { View } from '@tarojs/components';
+import { View, Image } from '@tarojs/components';
 
 import React, { CSSProperties } from 'react';
 
 import styles from './index.module.less';
 
-import ImageWrapper from '@/components/ImageWrapper';
 import DefaultCover from '@/static/img/default-cover.png';
 
 export interface ListItemProps {
@@ -33,7 +32,7 @@ const ListItem = ({
       onClick={onCardClick}
     >
       <View className={styles['list-item-main']}>
-        <ImageWrapper
+        <Image
           style={{ width: '50px', height: '50px', marginRight: '20px' }}
           src={cover ? cover : DefaultCover}
         />

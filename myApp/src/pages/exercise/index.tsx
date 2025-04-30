@@ -1,15 +1,16 @@
-import { View, Text, Input } from '@tarojs/components'
-import { Search, ArrowRight } from '@nutui/icons-react-taro'
-import { useState } from 'react'
-import './index.less'
+import { View, Text } from '@tarojs/components';
+
+import { Search, ArrowRight } from '@nutui/icons-react-taro';
+import { useState } from 'react';
+import './index.less';
 
 interface ExerciseItem {
-  id: number
-  title: string
-  students: number
-  chapters: number
-  difficulty: '简单' | '中等' | '困难'
-  isFree: boolean
+  id: number;
+  title: string;
+  students: number;
+  chapters: number;
+  difficulty: '简单' | '中等' | '困难';
+  isFree: boolean;
 }
 
 const ExercisePage = () => {
@@ -62,7 +63,7 @@ const ExercisePage = () => {
       difficulty: '中等',
       isFree: false
     }
-  ])
+  ]);
 
   return (
     <View className='exercise-page'>
@@ -80,7 +81,7 @@ const ExercisePage = () => {
       </View>
 
       <View className='exercise-list'>
-        {exercises.map(exercise => (
+        {exercises.map((exercise) => (
           <View key={exercise.id} className='exercise-item'>
             <View className='exercise-content'>
               <Text className='title'>{exercise.title}</Text>
@@ -100,7 +101,7 @@ const ExercisePage = () => {
         ))}
       </View>
     </View>
-  )
-}
+  );
+};
 
-export default ExercisePage
+export default ExercisePage;

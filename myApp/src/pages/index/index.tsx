@@ -1,23 +1,25 @@
 import { View } from '@tarojs/components';
-import Taro, { navigateTo } from '@tarojs/taro';
+import Taro, { navigateTo, getStorageSync } from '@tarojs/taro';
 
 import { Edit } from '@nutui/icons-react-taro';
+import { useEffect, useState } from 'react';
 
-import Course from './components/Course';
-import Navigation from './components/Navigation';
+import Course from './components/course';
+import Navigation from './components/navigation';
 
-import Banner from '@/components/Banner';
-import List from '@/components/List';
-import NavigationBar from '@/components/NavigationBar';
-import Title from '@/components/Title';
+import { courseService } from '@/api/course';
+import Banner from '@/components/banner';
+import List from '@/components/list';
+import NavigationBar from '@/components/navigationBar';
+import Title from '@/components/title';
+import { Course as CourseType } from '@/types/course';
 import { genUrl } from '@/utils';
 
 import './index.less';
-import { useEffect } from 'react';
-import { Gender, userAtom } from '@/store/user';
-import { useAtom } from 'jotai';
 
 function Index() {
+  const [courseList, setCourseList] = useState<CourseType[]>([]);
+
   const handleExerciseClick = (exercise) => {
     navigateTo({
       url: genUrl('/pages/exerciseDetail/index', {
@@ -52,24 +54,21 @@ function Index() {
     }
   ];
 
-  const [user, setUser] = useAtom(userAtom);
-
   useEffect(() => {
-    setUser({
-      id: '20031219',
-      username: '用户不存在',
-      avatar:
-        'https://img12.360buyimg.com/imagetools/jfs/t1/143702/31/16654/116794/5fc6f541Edebf8a57/4138097748889987.png',
-      backgroundImage:
-        'https://img20.360buyimg.com/openfeedback/jfs/t1/275753/36/25037/149784/68089586Ffe6bf8d7/ae8f30f33cc1694a.png',
-      desc: '输入你的简介。',
-      extra: {
-        gender: Gender.Unknown,
-        school: '',
-        birthday: '',
-        location: ''
-      }
-    });
+    const token = getStorageSync('token');
+    if (!token) {
+      navigateTo({ url: '/pages/login/index' });
+    }
+
+    const fetchCourseList = async () => {
+      const res = await courseService.getCourseList({
+        page: 1,
+        pageSize: 10
+      });
+      setCourseList(res.data.slice(0, 4));
+    };
+
+    fetchCourseList();
   }, []);
 
   return (
@@ -84,7 +83,7 @@ function Index() {
             Taro.navigateTo({ url: '/pages/courseList/index' });
           }}
         />
-        <Course />
+        <Course courseList={courseList} />
         <Title
           text='热门题库'
           onMoreClick={() => {

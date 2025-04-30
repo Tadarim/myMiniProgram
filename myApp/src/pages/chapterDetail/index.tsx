@@ -1,252 +1,370 @@
 import { View, Text, Video, Button } from '@tarojs/components';
 import {
-  useRouter,
   showLoading,
   hideLoading,
   showToast,
   openDocument,
   downloadFile,
   chooseMessageFile,
-  uploadFile
+  useLoad,
+  uploadFile,
+  previewImage,
+  getStorageSync,
+  setNavigationBarTitle
 } from '@tarojs/taro';
 
 import { useState } from 'react';
 
-import NavigationBar from '@/components/NavigationBar';
+import { BASE_URL, API_ROUTES } from '@/api/constant';
+import NavigationBar from '@/components/navigationBar';
+import { Chapter, Material, MaterialType } from '@/types/course';
+
 import './index.less';
 
 const ChapterDetail = () => {
-  // 将文档信息改为数组结构
-  const [chapterData, setChapterData] = useState({
-    videoUrl: 'https://media.w3.org/2010/05/sintel/trailer.mp4', // 示例视频 URL
-    documents: [
-      // 使用 documents 数组
-      {
-        id: 1, // 添加唯一标识符
-        name: '课程讲义.pdf',
-        url: 'https://www.africau.edu/images/default/sample.pdf', // 初始文档 URL
-        status: 'approved' // 初始文档状态为已批准
-      }
-    ]
+  const [chapter, setChapter] = useState<Chapter | null>(null);
+
+  useLoad((options) => {
+    if (options.chapter) {
+      console.log('options.chapter', decodeURIComponent(options.chapter));
+      const chapterData = JSON.parse(decodeURIComponent(options.chapter));
+      setChapter(chapterData);
+      setNavigationBarTitle({
+        title: chapterData.title
+      });
+    }
   });
 
-  // 模拟获取数据函数
-  // const fetchChapterData = async (identifier) => {
-  //   showLoading({ title: '加载中...' });
-  //   try {
-  //     // const res = await api.getChapterDetails(identifier);
-  //     // setChapterData(res.data);
-  //   } catch (error) {
-  //     showToast({ title: '加载失败', icon: 'none' });
-  //   } finally {
-  //     hideLoading();
-  //   }
-  // };
-
-  // 修改 handleDownload 以接受文档对象
-  const handleDownload = (document: { name: string; url: string | null }) => {
-    if (!document.url || document.url.startsWith('wxfile://')) {
-      showToast({ title: '文件无法下载或查看', icon: 'none' });
+  const handleDownload = async (material: Material) => {
+    if (!material.url) {
+      showToast({ title: '文件链接无效', icon: 'none' });
       return;
     }
-    showLoading({ title: '下载中...' });
-    downloadFile({
-      url: document.url, // 使用传入的文档 URL
-      success: (res) => {
-        hideLoading();
-        if (res.statusCode === 200) {
-          const filePath = res.tempFilePath;
-          showToast({ title: '下载成功', icon: 'success' });
-          openDocument({
-            filePath: filePath,
-            showMenu: true,
-            fail: (err) => {
-              console.error('打开文档失败:', err);
-              showToast({
-                title: '打开文档失败，请在文件管理器中查看',
-                icon: 'none',
-                duration: 2000
-              });
-            }
-          });
-        } else {
-          showToast({ title: `下载失败 (${res.statusCode})`, icon: 'none' });
-        }
-      },
-      fail: (err) => {
-        hideLoading();
-        console.error('下载文件失败:', err);
-        showToast({ title: '下载失败，请检查网络或链接', icon: 'none' });
-      }
-    });
-  };
 
-  // 修改：处理文件上传，添加到列表
-  const handleUploadFile = () => {
-    chooseMessageFile({
-      count: 1,
-      type: 'file',
-      extension: ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'txt'],
-      success: (res) => {
-        const tempFile = res.tempFiles[0];
-        if (tempFile) {
-          console.log('选择的文件信息:', tempFile);
-          // 修改提示信息
+    if (
+      !material.url.startsWith('http://') &&
+      !material.url.startsWith('https://')
+    ) {
+      showToast({ title: '文件链接格式不正确', icon: 'none' });
+      return;
+    }
+
+    // 如果是视频，直接返回，因为视频已经在页面上播放了
+    if (material.type === 'video') {
+      return;
+    }
+
+    showLoading({ title: '下载中...' });
+    try {
+      console.log('开始下载文件:', material.url);
+
+      // 添加超时设置
+      const res = await downloadFile({
+        url: material.url,
+        header: {
+          'Content-Type': 'application/octet-stream',
+          Accept: '*/*',
+          'User-Agent':
+            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        },
+        timeout: 10000 // 10秒超时
+      });
+
+      console.log('下载响应:', res);
+
+      if (res.statusCode === 200) {
+        hideLoading();
+        showToast({ title: '下载成功', icon: 'success' });
+
+        // 根据文件类型选择打开方式
+        if (['pdf', 'doc', 'docx', 'txt'].includes(material.type)) {
+          try {
+            await openDocument({
+              filePath: res.tempFilePath,
+              showMenu: true
+            });
+          } catch (openErr) {
+            console.error('打开文档失败:', openErr);
+            showToast({
+              title: '打开文档失败，请在文件管理器中查看',
+              icon: 'none',
+              duration: 2000
+            });
+          }
+        } else if (['ppt', 'pptx'].includes(material.type)) {
           showToast({
-            title: '上传成功，等待审核',
+            title: '请在文件管理器中查看',
             icon: 'none',
             duration: 2000
           });
-
-          // 创建新的文档对象
-          const newDocument = {
-            id: Date.now(), // 使用时间戳作为临时 ID
-            name: tempFile.name,
-            url: null, // 初始 URL 为 null，表示不可下载
-            status: 'pending' // 状态为待审核
-          };
-
-          // 将新文档添加到 documents 数组
-          setChapterData((prev) => ({
-            ...prev,
-            documents: [...prev.documents, newDocument] // 追加到数组末尾
-          }));
-
-          /*  // 注释掉实际上传的部分
-          showLoading({ title: '上传中...' });
-          // 调用 Taro.uploadFile 将文件上传到你的服务器
-          uploadFile({
-            url: 'YOUR_BACKEND_UPLOAD_API_ENDPOINT', // <--- 替换成你的后端上传接口地址
-            filePath: tempFile.path,
-            name: 'file', // 后端接收文件的字段名
-            // 可以添加 formData 来传递额外参数，例如章节 ID
-            // formData: {
-            //   chapterId: router.params.id, // 假设你有章节 ID
-            // },
-            success: (uploadRes) => {
-              hideLoading();
-              // 这里需要检查后端返回的数据格式来判断是否上传成功
-              // 通常后端会返回 JSON 字符串，需要解析
-              try {
-                const data = JSON.parse(uploadRes.data);
-                if (data.success) {
-                  // 假设后端返回 { success: true, fileUrl: '...', fileName: '...' }
-                  showToast({ title: '上传成功', icon: 'success' });
-                  // 可选：更新当前页面的文档信息
-                  setChapterData((prev) => ({
-                    ...prev,
-                    documentUrl: data.fileUrl,
-                    documentName: data.fileName || tempFile.name
-                  }));
-                } else {
-                  showToast({
-                    title: data.message || '上传失败',
-                    icon: 'none'
-                  });
-                }
-              } catch (e) {
-                // 如果后端直接返回非 JSON 字符串或者状态码不是 2xx，也算失败
-                if (uploadRes.statusCode >= 200 && uploadRes.statusCode < 300) {
-                  // 可能是后端未按约定返回 JSON
-                  showToast({ title: '上传成功，但响应异常', icon: 'none' });
-                } else {
-                  showToast({
-                    title: `上传失败 (${uploadRes.statusCode})`,
-                    icon: 'none'
-                  });
-                }
-              }
-            },
-            fail: (err) => {
-              hideLoading();
-              console.error('上传文件失败:', err);
-              showToast({ title: '上传接口调用失败', icon: 'none' });
-            }
-          });
-          */ // 结束注释
+        } else if (['image'].includes(material.type)) {
+          try {
+            await previewImage({
+              urls: [material.url],
+              current: material.url
+            });
+          } catch (previewErr) {
+            console.error('预览图片失败:', previewErr);
+            showToast({
+              title: '预览图片失败',
+              icon: 'none',
+              duration: 2000
+            });
+          }
         }
-      },
-      fail: (err) => {
-        console.log('选择文件失败:', err);
+      } else {
+        throw new Error(`下载失败 (${res.statusCode})`);
       }
-    });
-  };
+    } catch (err) {
+      hideLoading();
+      console.error('下载文件失败:', err);
+      let errorMessage = '下载失败，请检查网络或链接';
 
-  // 新增：根据文件名获取简单文本图标
-  const getDocumentIconText = (fileName: string): string => {
-    if (!fileName) return '';
-    const extension = fileName.split('.').pop()?.toLowerCase();
-    switch (extension) {
-      case 'pdf':
-        return '[PDF]';
-      case 'ppt':
-      case 'pptx':
-        return '[PPT]';
-      case 'doc':
-      case 'docx':
-        return '[DOC]';
-      case 'xls':
-      case 'xlsx':
-        return '[XLS]';
-      case 'txt':
-        return '[TXT]';
-      default:
-        return '[文件]'; // 默认图标
+      if (err.errMsg) {
+        if (err.errMsg.includes('404')) {
+          errorMessage = '文件不存在或已被删除';
+        } else if (err.errMsg.includes('403')) {
+          errorMessage = '没有权限访问该文件';
+        } else if (err.errMsg.includes('500')) {
+          errorMessage = '服务器错误，请稍后重试';
+        } else if (err.errMsg.includes('timeout')) {
+          errorMessage = '下载超时，请检查网络连接';
+        }
+      }
+
+      showToast({
+        title: errorMessage,
+        icon: 'none',
+        duration: 2000
+      });
     }
   };
 
+  const handleUploadFile = async () => {
+    try {
+      const res = await chooseMessageFile({
+        count: 1,
+        type: 'file',
+        extension: ['pdf', 'ppt', 'pptx', 'doc', 'docx', 'xls', 'xlsx', 'txt']
+      });
+
+      const tempFile = res.tempFiles[0];
+      if (!tempFile) {
+        showToast({
+          title: '未选择文件',
+          icon: 'none',
+          duration: 2000
+        });
+        return;
+      }
+
+      console.log('选择的文件信息:', {
+        name: tempFile.name,
+        size: tempFile.size,
+        path: tempFile.path,
+        type: tempFile.type
+      });
+
+      // 检查文件大小
+      if (tempFile.size === 0) {
+        showToast({
+          title: '文件大小为0，请选择有效的文件',
+          icon: 'none',
+          duration: 2000
+        });
+        return;
+      }
+
+      // 开始上传
+      showLoading({ title: '上传中...' });
+
+      try {
+        // 直接上传文件到服务器
+        const token = getStorageSync('token');
+        if (!token) {
+          showToast({
+            title: '未登录或登录已过期',
+            icon: 'none',
+            duration: 2000
+          });
+          return;
+        }
+
+        const fileInfoRes = await uploadFile({
+          url: `${BASE_URL}${API_ROUTES.UPLOAD}`,
+          filePath: tempFile.path,
+          name: 'file',
+          formData: {
+            fileName: tempFile.name,
+            chapterId: chapter?.id || ''
+          },
+          header: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          },
+          timeout: 60000
+        });
+
+        console.log('文件上传响应:', fileInfoRes);
+
+        if (fileInfoRes.statusCode !== 200) {
+          throw new Error(`上传失败: ${fileInfoRes.errMsg}`);
+        }
+
+        let fileInfo;
+        try {
+          fileInfo = JSON.parse(fileInfoRes.data);
+          console.log('解析后的响应数据:', fileInfo);
+        } catch (e) {
+          console.error('解析响应数据失败:', e);
+          throw new Error('服务器响应格式错误');
+        }
+
+        if (!fileInfo.success) {
+          throw new Error(fileInfo.error || '上传失败');
+        }
+
+        // 创建新的材料对象
+        const newMaterial: Material = {
+          id: fileInfo.data.id,
+          title: fileInfo.data.fileName,
+          type: fileInfo.data.fileType as MaterialType,
+          url: fileInfo.data.url,
+          upload_time: new Date().toISOString(),
+          status: 'pending',
+          is_system: false
+        };
+
+        // 更新章节材料列表
+        if (chapter) {
+          setChapter({
+            ...chapter,
+            materials: [...chapter.materials, newMaterial]
+          });
+          console.log('更新后的章节材料列表:', chapter.materials);
+        }
+
+        hideLoading();
+        showToast({
+          title: '上传成功，等待审核',
+          icon: 'success',
+          duration: 2000
+        });
+      } catch (err) {
+        console.error('上传文件失败:', err);
+        hideLoading();
+        showToast({
+          title: err.message || '上传失败，请重试',
+          icon: 'error',
+          duration: 2000
+        });
+      }
+    } catch (err) {
+      console.error('选择文件失败:', err);
+      showToast({
+        title: '选择文件失败',
+        icon: 'none',
+        duration: 2000
+      });
+    }
+  };
+
+  const getMaterialIconText = (type: MaterialType): string => {
+    switch (type) {
+      case 'ppt':
+        return '[PPT]';
+      case 'pdf':
+        return '[PDF]';
+      case 'doc':
+        return '[DOC]';
+      case 'txt':
+        return '[TXT]';
+      case 'image':
+        return '[图片]';
+      case 'audio':
+        return '[音频]';
+      default:
+        return '';
+    }
+  };
+
+  const getButtonText = (type: MaterialType): string => {
+    switch (type) {
+      case 'video':
+        return '播放';
+      case 'image':
+        return '查看';
+      default:
+        return '下载';
+    }
+  };
+
+  if (!chapter) {
+    return <View>加载中...</View>;
+  }
+
   return (
-    <View className='chapter-detail'>
-      <NavigationBar title='章节详情' />
+    <View className='chapter-detail page-container'>
+      <NavigationBar title={chapter.title} />
 
       <View className='content-section'>
-        <Text className='section-title'>章节视频</Text>
-        {chapterData.videoUrl ? (
-          <Video
-            className='chapter-video'
-            src={chapterData.videoUrl}
-            controls
-            autoplay={false}
-            // 可以添加 poster 等属性
-          />
-        ) : (
-          <Text className='placeholder-text'>暂无视频</Text>
-        )}
-      </View>
+        <Text className='section-title'>学习材料</Text>
+        {chapter.materials && chapter.materials.length > 0 ? (
+          chapter.materials.map((material) => (
+            <View key={material.id} className='material-section'>
+              {material.type === 'video' ? (
+                <View className='video-section'>
+                  <Video
+                    className='material-video'
+                    src={material.url}
+                    controls
+                    autoplay={false}
+                    initialTime={0}
+                    onError={(e) => {
+                      console.error('视频加载失败:', e);
+                      showToast({
+                        title: '视频加载失败，请检查网络或链接',
+                        icon: 'none',
+                        duration: 2000
+                      });
+                    }}
+                  />
+                </View>
+              ) : (
+                <View className='document-section'>
+                  <View className='material-info'>
+                    <View className='material-icon'>
+                      {!material.is_system && (
+                        <Text className='user-upload'>[用户]</Text>
+                      )}
+                      <Text className='file-type'>
+                        {getMaterialIconText(material.type)}
+                      </Text>
 
-      <View className='content-section'>
-        <Text className='section-title'>课程文档</Text>
-        {/* 遍历 documents 数组 */}
-        {chapterData.documents && chapterData.documents.length > 0 ? (
-          chapterData.documents.map((doc) => (
-            <View key={doc.id} className='document-section'>
-              <View className='document-info'>
-                <Text className='document-icon'>
-                  {getDocumentIconText(doc.name)}
-                </Text>
-                <Text className='document-name'>{doc.name}</Text>
-                {/* 显示待审核状态 */}
-                {doc.status === 'pending' && (
-                  <Text className='document-status'>(待审核)</Text>
-                )}
-              </View>
-              <Button
-                className='download-button'
-                type='primary'
-                size='mini'
-                // onClick 需要传递当前文档对象
-                onClick={() => handleDownload(doc)}
-                // 禁用条件：状态不是 approved 或者 URL 不存在
-                disabled={doc.status !== 'approved' || !doc.url}
-              >
-                下载/查看
-              </Button>
+                      {material.status === 'pending' && (
+                        <Text className='material-status'>(待审核)</Text>
+                      )}
+                    </View>
+                    <Text className='material-name'>{material.title}</Text>
+                  </View>
+                  <View className='material-actions'>
+                    <Button
+                      className='download-button'
+                      type='primary'
+                      size='mini'
+                      onClick={() => handleDownload(material)}
+                      disabled={material.status !== 'approved' || !material.url}
+                    >
+                      {getButtonText(material.type)}
+                    </Button>
+                  </View>
+                </View>
+              )}
             </View>
           ))
         ) : (
-          <Text className='placeholder-text'>暂无文档</Text>
+          <Text className='placeholder-text'>暂无学习材料</Text>
         )}
-        {/* 上传按钮 */}
         <View className='upload-section'>
           <Button
             className='upload-button'
@@ -254,7 +372,7 @@ const ChapterDetail = () => {
             size='mini'
             onClick={handleUploadFile}
           >
-            上传新文档
+            上传新材料
           </Button>
         </View>
       </View>

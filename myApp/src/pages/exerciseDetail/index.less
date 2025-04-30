@@ -4,58 +4,37 @@
   min-height: 100vh;
   background: #f5f7fa;
   padding-top: 88px;
-  // 调整 padding-bottom 以适应 footer 高度
-  padding-bottom: 130px; // 可能需要根据实际情况微调
+  padding-bottom: 130px;
 }
 
-// 新增导航栏收藏按钮样式
 .collect-button-nav {
-  padding: 0 10px; // 调整内边距适应导航栏
+  padding: 0 10px;
   display: flex;
   align-items: center;
-  height: 100%; // 确保垂直居中
+  height: 100%;
 }
-
 
 .question-header {
   padding: 15px;
   background-color: #fff;
   margin-bottom: 10px;
-  // 不再需要 flex 布局来放按钮
-  // display: flex;
-  // justify-content: space-between;
-  // align-items: flex-start;
-
-  // 移除 header-left 相关样式
-  // .header-left {
-  //   flex: 1;
-  //   margin-right: 10px;
-  // }
 
   .question-type {
-    display: inline-block; // 让背景色只包裹文字
+    display: inline-block;
     padding: 2px 6px;
-    background-color: #eef2ff; // 示例背景色
-    color: #4a6dff; // 示例文字颜色
+    background-color: #eef2ff;
+    color: #4a6dff;
     font-size: 12px;
     border-radius: 3px;
-    margin-right: 8px; // 与题目内容间距
-    margin-bottom: 8px; // 确保与下方文本有间距
+    margin-right: 8px;
+    margin-bottom: 8px;
   }
 
   .question-text {
     font-size: 16px;
     color: #333;
     line-height: 1.5;
-    // display: block; // 确保独占一行（如果需要）
   }
-
-  // 移除 collect-button 样式
-  // .collect-button {
-  //   cursor: pointer;
-  //   padding: 5px;
-  //   margin-top: -3px;
-  // }
 }
 
 .options-list {
@@ -126,17 +105,14 @@
   right: 0;
   bottom: 0;
   background: #fff;
-  padding: 10px 16px 16px; // 调整内边距
+  padding: 10px 16px 16px;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
-
-  // 移除 footer-top-row 相关样式 (如果之前添加过)
-  // .footer-top-row { ... }
 
   .progress-dots {
     display: flex;
     justify-content: center;
     gap: 8px;
-    margin-bottom: 16px; // 保持与下方按钮行的间距
+    margin-bottom: 16px;
 
     .dot {
       width: 24px;
@@ -156,47 +132,43 @@
     }
   }
 
-  // 新增容器样式
   .footer-buttons {
     display: flex;
     align-items: center;
-    gap: 10px; // 调整按钮间距
+    gap: 10px;
   }
 
   .collect-button-footer {
     display: flex;
-    flex-direction: column; // 图标和文字垂直排列
-    align-items: center; // 水平居中
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
     cursor: pointer;
     padding: 5px;
-    min-width: 50px; // 给按钮一个最小宽度
+    min-width: 50px;
 
     .collect-text {
-      font-size: 12px; // 文字小一点
+      font-size: 12px;
       color: #666;
-      margin-top: 2px; // 图标和文字间距
+      margin-top: 2px;
     }
   }
 
-  // 新增上一题按钮样式
   .prev-button {
     height: 44px;
-    padding: 0 20px; // 左右内边距
-    border: 1px solid #ccc; // 示例边框
+    padding: 0 20px;
+    border: 1px solid #ccc;
     border-radius: 22px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666; // 示例文字颜色
+    color: #666;
     font-size: 16px;
-    background: #fff; // 背景色
-    // 可以根据需要调整宽度，或者让其自适应内容宽度
+    background: #fff;
   }
 
-
   .next-button {
-    flex: 1; // 占据剩余空间
+    flex: 1;
     height: 44px;
     background: @primary-gradient;
     border-radius: 22px;

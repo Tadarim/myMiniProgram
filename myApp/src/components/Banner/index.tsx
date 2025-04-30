@@ -1,7 +1,5 @@
 import { Swiper, SwiperItem } from '@tarojs/components';
 
-import React from 'react';
-
 const Banner = () => {
   return (
     <Swiper style={{ height: '220px' }} autoplay>

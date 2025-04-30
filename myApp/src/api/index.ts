@@ -12,7 +12,6 @@ export const fetchBirthDayExtra = async (birthday: string) => {
       url: 'https://zj.v.api.aa1.cn/api/Age-calculation',
       data: { birthday }
     });
-    // 同样的处理逻辑
     const jsonStartIndex = response.data.indexOf('{');
     const jsonEndIndex = response.data.lastIndexOf('}');
     if (jsonStartIndex !== -1 && jsonEndIndex !== -1) {

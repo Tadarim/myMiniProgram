@@ -3,15 +3,15 @@
 .login-page {
   display: flex;
   flex-direction: column;
-  height: 100vh; // 确保页面占满全屏
-  background-color: #f7f8fa; // 页面背景色
+  height: 100vh;
+  background-color: #f7f8fa;
 
   .login-form-container {
     flex: 1; // 占据剩余空间
     padding: 30px 20px;
     display: flex;
     flex-direction: column;
-    justify-content: center; // 垂直居中表单内容
+    justify-content: center;
 
     .welcome-title {
       font-size: 24px;
@@ -21,53 +21,45 @@
       color: #333;
     }
 
-    // 基础输入框容器样式 (用于 FormItem 内部)
     .input-wrapper-base {
-      // 创建一个基础类，或者直接应用到下面两个类
       display: flex;
       align-items: center;
       background-color: #fff;
       border: 1px solid #dcdfe6;
       border-radius: 12px;
-      padding: 0 10px; // 内边距
+      padding: 0 10px;
       margin: 15px 15px 0;
-      // width: 90%;
       box-sizing: border-box;
       min-height: 40px;
     }
 
     .input-with-icon {
-      .input-wrapper-base(); // 继承基础样式
+      .input-wrapper-base();
 
       .input-icon {
-        // 合并图标样式
         margin-right: 8px;
         color: rgb(133, 133, 133);
         font-size: 18px;
-        flex-shrink: 0; // 防止图标被压缩
+        flex-shrink: 0;
       }
       .input-img-icon {
-        // 图片特定尺寸
         width: 24px;
         height: 24px;
       }
 
       .input-field {
-        flex: 1; // 占据所有剩余空间
+        flex: 1;
         background: none;
         border: none;
-        padding: 10px 0; // Input 自身的垂直内边距
+        padding: 10px 0;
         margin: 0;
-        // height: auto; // Input 高度自适应内容
-        // min-height: 40px; // Input 最小高度 (可能不需要，由容器保证)
-        width: 100%; // 确保 Input 尝试填充 flex item
+        width: 100%;
       }
 
       .nut-input {
-        // NutUI Input 内部调整
         padding: 0;
         background-color: transparent;
-        width: 100%; // 确保 NutUI Input 内部也填充
+        width: 100%;
       }
 
       > view {
@@ -76,10 +68,9 @@
     }
 
     .input-with-button {
-      .input-wrapper-base(); // 继承基础样式
+      .input-wrapper-base();
 
       .input-icon {
-        // 如果验证码行也需要图标
         margin-right: 8px;
         color: rgb(133, 133, 133);
         font-size: 18px;
@@ -123,9 +114,9 @@
 
     .extra-links {
       display: flex;
-      justify-content: space-between; // 两端对齐
+      justify-content: space-between;
       margin-top: 15px;
-      margin-bottom: 25px; // 与下方分割线的间距
+      margin-bottom: 25px;
 
       .link-text {
         font-size: 13px;
@@ -133,12 +124,11 @@
         cursor: pointer;
 
         &:hover {
-          color: #1989fa; // 鼠标悬停颜色
+          color: #1989fa;
         }
       }
     }
 
-    // "其他登录方式" 分割线样式
     .nut-cell-group {
       margin-bottom: 20px;
       .nut-cell__title {
@@ -147,16 +137,16 @@
         font-size: 13px;
       }
       &::after {
-        border-bottom: none; // 移除 CellGroup 默认边框
+        border-bottom: none;
       }
     }
 
     .social-login {
       display: flex;
-      justify-content: center; // 居中社交登录按钮
+      justify-content: center;
 
       .social-button {
-        border: none; // 移除按钮边框
+        border: none;
         padding: 0 15px;
         display: flex;
         align-items: center;
@@ -177,17 +167,14 @@
   height: 24px;
 }
 
-// 调整 FormItem 默认间距和内边距
 .nut-form-item {
   padding: 0 !important;
   margin-bottom: 15px;
 
-  // 最后一个 FormItem 不需要下外边距
   &:last-child {
     margin-bottom: 0;
   }
 
-  // 覆盖 NutUI FormItem 内部可能影响宽度的样式 (如果需要)
   .nut-form-item__body {
     width: 100%;
   }

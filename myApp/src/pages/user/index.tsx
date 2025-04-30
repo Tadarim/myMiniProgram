@@ -11,11 +11,13 @@ import { PostTab } from './components/postTab';
 import ProfileBg from './components/ProfileBg';
 import ProfileInfo from './components/ProfileInfo';
 
-import { MyEmpty } from '@/components/Empty';
-import { Gender, userAtom } from '@/store/user';
+import { MyEmpty } from '@/components/empty';
+import { userAtom } from '@/store/user';
+import { Gender } from '@/types/user';
 
 const Profile = () => {
   const [user, setUser] = useAtom(userAtom);
+
   const [tab1value, setTab1value] = useState<string | number>('0');
   const [tab2value, setTab2value] = useState<string | number>('0');
 
@@ -24,7 +26,9 @@ const Profile = () => {
     user?.extra?.age,
     user?.extra?.constellation,
     user?.extra?.gender === Gender.Unknown ? '' : Gender.Male ? '男' : '女',
-    user?.extra?.location
+    (user?.extra?.location ?? []).length > 0 && user?.extra?.location[0]
+      ? user?.extra?.location
+      : ''
   ].filter(Boolean) as string[];
 
   const tags = [...extraTags, '添加你的个性标签吧'];
@@ -131,18 +135,24 @@ const Profile = () => {
 
   const handleBgChange = (newImageUrl: string) => {
     console.log('UserPage updating bg url to:', newImageUrl);
-    setUser((prev) => ({
-      ...prev,
-      backgroundImage: newImageUrl
-    }));
+    setUser((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        backgroundImage: newImageUrl
+      };
+    });
   };
 
   const handleAvatarChange = (newAvatarUrl: string) => {
     console.log('UserPage updating avatar url to:', newAvatarUrl);
-    setUser((prev) => ({
-      ...prev,
-      avatar: newAvatarUrl
-    }));
+    setUser((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        avatar: newAvatarUrl
+      };
+    });
   };
 
   return (

@@ -22,7 +22,6 @@ const imageMap = {
     'https://img20.360buyimg.com/openfeedback/jfs/t1/240503/26/34721/13691/6804aec8F991736fc/703a8688c1825817.png'
 };
 
-// 使用 React.FC 并指定 Props 类型
 export const MyEmpty = ({
   type = 'empty',
   title,

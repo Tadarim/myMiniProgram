@@ -1,4 +1,4 @@
-import { View, Text, Button } from '@tarojs/components';
+import { View, Text } from '@tarojs/components';
 import {
   usePageScroll,
   PageScrollObject,
@@ -81,7 +81,7 @@ const NavigationBar: FC<PropsWithChildren<NavigationBarProps>> = (props) => {
 
     try {
       const pages = getCurrentPages() || [];
-      console.log('pages', pages);
+
       if (pages.length >= 2) {
         // 获取当前页面在栈中的位置
         const currentPage = pages[pages.length - 1];

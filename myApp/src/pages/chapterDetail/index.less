@@ -1,100 +1,166 @@
 .chapter-detail {
-  padding: 15px;
-  padding-top: 88px; // 留出导航栏空间，根据实际导航栏高度调整
-  background-color: #f5f7fa;
   min-height: 100vh;
-}
+  background-color: #f5f5f5;
+  padding-right: 0;
+  padding-left: 0;
+  padding-bottom: 20px;
 
-.content-section {
-  background-color: #fff;
-  padding: 15px;
-  margin-bottom: 15px;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
+  .content-section {
+    margin: 12px;
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 
-.section-title {
-  font-size: 16px;
-  font-weight: bold;
-  color: #333;
-  margin-bottom: 12px;
-  display: block;
-}
+    .section-title {
+      font-size: 18px;
+      font-weight: 500;
+      color: #333;
+      margin-bottom: 16px;
+      display: block;
+    }
 
-.chapter-video {
-  width: 100%;
-  height: 200px; // 根据需要调整视频高度
-  background-color: #000; // 视频加载前背景色
-}
+    .material-section {
+      margin-bottom: 16px;
+      background-color: #fafafa;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #eee;
 
-.placeholder-text {
-  color: #999;
-  font-size: 14px;
-  text-align: center;
-  padding: 20px 0;
-}
+      .video-section {
+        width: 100%;
 
-.document-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
+        .material-video {
+          width: 100%;
+          height: 200px;
+        }
+      }
 
-// 新增：包裹图标和名称的容器
-.document-info {
-  display: flex;
-  align-items: center;
-  flex: 1; // 占据主要空间
-  margin-right: 10px; // 与按钮间距
-  overflow: hidden; // 防止内容溢出
-}
+      .document-section {
+        padding: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
 
-// 新增：文档图标样式
-.document-icon {
-  margin-right: 5px; // 图标和文字间距
-  font-size: 12px; // 图标字体大小
-  color: #666; // 图标颜色
-  // 可以根据需要设置宽度，防止挤压名称
-  // flex-shrink: 0;
-}
+        .material-info {
+          flex: 1;
+          margin-right: 12px;
+          display: flex;
+          align-items: center;
 
+          .material-icon {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            margin-right: 12px;
 
-.document-name {
-  font-size: 14px;
-  color: #333;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  // 可能需要限制最大宽度，给状态文字留空间
-  max-width: calc(100% - 40px); // 示例值，根据实际情况调整
-}
+            .user-upload {
+              color: #52c41a;
+              background: rgba(82, 196, 26, 0.1);
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 12px;
+              font-weight: 500;
+              line-height: 1;
+            }
 
-// 新增：待审核状态样式
-.document-status {
-  font-size: 12px;
-  color: #ff976a; // 橙色提示
-  margin-left: 5px;
-  white-space: nowrap; // 防止换行
-}
+            .file-type {
+              color: #1890ff;
+              background: rgba(24, 144, 255, 0.1);
+              padding: 4px 8px;
+              border-radius: 4px;
+              font-size: 12px;
+              font-weight: 500;
+              line-height: 1;
+            }
+          }
 
+          .material-name {
+            max-width: 160px;
+            font-size: 15px;
+            color: #333;
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            line-height: 1.4;
+          }
 
-.download-button {
-  margin-left: auto;
-  // 添加禁用时的样式 (可选)
-  &[disabled] {
-    opacity: 0.6;
-    // background-color: #ccc !important; // 可能需要 !important 覆盖默认样式
+          .material-status {
+            font-size: 12px;
+            color: #ff9800;
+            margin-left: 8px;
+            padding: 2px 6px;
+            background: rgba(255, 152, 0, 0.1);
+            border-radius: 4px;
+          }
+        }
+
+        .download-button {
+          min-width: 70px;
+          height: 32px;
+          line-height: 32px;
+          font-size: 14px;
+          border-radius: 4px;
+          background: #1890ff;
+          color: white;
+          border: none;
+          padding: 0 16px;
+
+          &:active {
+            opacity: 0.8;
+          }
+
+          &[disabled] {
+            background: #ccc;
+            color: #666;
+          }
+        }
+      }
+    }
+
+    .placeholder-text {
+      color: #999;
+      font-size: 14px;
+      text-align: center;
+      padding: 20px 0;
+      display: block;
+    }
+
+    .upload-section {
+      margin-top: 20px;
+      text-align: center;
+
+      .upload-button {
+        width: 120px;
+        height: 36px;
+        line-height: 36px;
+        font-size: 14px;
+        background-color: #fff;
+        color: #1890ff;
+        border: 1px solid #1890ff;
+        border-radius: 4px;
+        transition: all 0.3s;
+
+        &:active {
+          background-color: #e6f7ff;
+        }
+      }
+    }
+
+    .material-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+
+      .download-button {
+        flex: 1;
+      }
+
+      .delete-button {
+        flex: 1;
+      }
+    }
   }
-}
-
-
-// 新增上传按钮区域样式
-.upload-section {
-  margin-top: 10px; // 与上方内容间距
-  text-align: right; // 让按钮靠右显示
-}
-
-.upload-button {
-  // 可以根据需要自定义样式
 }

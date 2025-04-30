@@ -4,7 +4,7 @@ import { Tabs } from '@nutui/nutui-react-taro';
 import { useState } from 'react';
 
 import './index.less';
-import NavigationBar from '@/components/NavigationBar';
+import NavigationBar from '@/components/navigationBar';
 
 interface CourseRankItem {
   id: number;
@@ -13,7 +13,6 @@ interface CourseRankItem {
   rank: number;
 }
 
-// 添加习题榜数据接口
 interface ExerciseRankItem {
   id: number;
   title: string;
@@ -32,7 +31,6 @@ const RankList = () => {
     { id: 5, title: '操作系统原理', enrollCount: 1432, rank: 5 }
   ]);
 
-  // 添加习题榜数据
   const [exerciseRankList] = useState<ExerciseRankItem[]>([
     { id: 1, title: '软件工程第一章', completeCount: 1245, rank: 1 },
     { id: 2, title: 'UML建模基础', completeCount: 1123, rank: 2 },
@@ -54,7 +52,6 @@ const RankList = () => {
         activeType='card'
       >
         <Tabs.TabPane title='课程榜' value='course' className='custom-tab-pane'>
-          {/* 课程榜内容 */}
           <View className='course-rank-container'>
             <View className='course-list'>
               {courseRankList.map((course) => (
@@ -83,7 +80,6 @@ const RankList = () => {
           value='exercise'
           className='custom-tab-pane'
         >
-          {/* 习题榜内容 */}
           <View className='exercise-rank-container'>
             <View className='exercise-list'>
               {exerciseRankList.map((exercise) => (

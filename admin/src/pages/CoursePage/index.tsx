@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types */
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   PlusOutlined,
   FolderOutlined,
@@ -11,7 +11,6 @@ import type { ActionType, ProColumns } from "@ant-design/pro-components";
 import { ProTable } from "@ant-design/pro-components";
 import {
   Button,
-  Switch,
   Modal,
   Table,
   Space,
@@ -21,6 +20,24 @@ import {
   Input,
   Upload,
 } from "antd";
+import {
+  getCourseList,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  getCourseDetail,
+  updateChapter,
+  reviewMaterial,
+  deleteMaterial,
+  getChapterDetail,
+} from "@api/course";
+import { uploadFile } from "@api/upload";
+import type {
+  CourseItem,
+  MaterialType,
+  Material,
+  Chapter,
+} from "@/types/course";
 
 export const waitTimePromise = async (time: number = 100) => {
   return new Promise((resolve) => {
@@ -34,194 +51,91 @@ export const waitTime = async (time: number = 100) => {
   await waitTimePromise(time);
 };
 
-type MaterialType = "video" | "pdf" | "ppt";
-
-interface Material {
-  id: string;
-  name: string;
-  type: MaterialType;
-  url: string;
-  uploadTime: string;
-  status: "pending" | "approved" | "rejected";
-  isSystem: boolean;
-}
-
-interface Chapter {
-  id: string;
-  name: string;
-  order: number;
-  materials: Material[];
-}
-
-interface CourseItem {
-  id: string;
-  courseName: string;
-  courseId: string;
-  description: string;
-  chapters: Chapter[];
-  created_at: string;
-  isVisible: boolean;
-}
-
-const mockCourses: CourseItem[] = [
-  {
-    id: "1",
-    courseName: "高等数学",
-    courseId: "MATH101",
-    description: "微积分与线性代数基础",
-    created_at: "2025-01-10",
-    isVisible: true,
-    chapters: [
-      {
-        id: "c1",
-        name: "第一章：函数与极限",
-        order: 1,
-        materials: [
-          {
-            id: "m1",
-            name: "1.1 函数概念",
-            type: "video",
-            url: "https://www.w3schools.com/html/mov_bbb.mp4",
-            uploadTime: "2025-01-10",
-            status: "approved",
-            isSystem: true,
-          },
-          {
-            id: "m2",
-            name: "第一章PPT",
-            type: "ppt",
-            url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-            uploadTime: "2025-01-10",
-            status: "approved",
-            isSystem: true,
-          },
-          {
-            id: "m5",
-            name: "函数极限补充资料",
-            type: "pdf",
-            url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-            uploadTime: "2024-03-20",
-            status: "pending",
-            isSystem: false,
-          },
-        ],
-      },
-      {
-        id: "c2",
-        name: "第二章：导数与微分",
-        order: 2,
-        materials: [
-          {
-            id: "m3",
-            name: "2.1 导数定义",
-            type: "video",
-            url: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-            uploadTime: "2025-01-11",
-            status: "approved",
-            isSystem: true,
-          },
-          {
-            id: "m4",
-            name: "第二章讲义",
-            type: "pdf",
-            url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-            uploadTime: "2025-01-11",
-            status: "approved",
-            isSystem: true,
-          },
-          {
-            id: "m6",
-            name: "导数应用实例",
-            type: "video",
-            url: "https://www.w3schools.com/html/mov_bbb.mp4",
-            uploadTime: "2024-03-20",
-            status: "pending",
-            isSystem: false,
-          },
-          {
-            id: "m7",
-            name: "微分习题集",
-            type: "pdf",
-            url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
-            uploadTime: "2024-03-20",
-            status: "rejected",
-            isSystem: false,
-          },
-        ],
-      },
-    ],
-  },
-];
-
-const mockVideos = [
-  {
-    id: "v1",
-    name: "1.1 函数概念",
-    url: "https://www.w3schools.com/html/mov_bbb.mp4", // 示例视频
-    type: "video",
-    uploadTime: "2024-03-20",
-  },
-  {
-    id: "v2",
-    name: "1.2 极限与连续",
-    url: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // 开源示例视频
-    type: "video",
-    uploadTime: "2024-03-20",
-  },
-];
-
-const mockFiles = [
-  {
-    id: "f1",
-    name: "第一章讲义.pdf",
-    url: "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", // 示例PDF
-    type: "pdf",
-    uploadTime: "2024-03-20",
-  },
-  {
-    id: "f2",
-    name: "第一章PPT.pptx",
-    url: "https://download.microsoft.com/download/0/B/E/0BE8BDD7-E5E8-422A-ABFD-4342ED7AD886/Windows10_1607_English_x64.iso", // 示例文件
-    type: "ppt",
-    uploadTime: "2024-03-20",
-  },
-];
-
 const CourseManagementPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [isChapterModalVisible, setIsChapterModalVisible] = useState(false);
   const [isMaterialModalVisible, setIsMaterialModalVisible] = useState(false);
   const [isEditChapterModalVisible, setIsEditChapterModalVisible] =
     useState(false);
+  const [isAddCourseModalVisible, setIsAddCourseModalVisible] = useState(false);
   const [currentCourse, setCurrentCourse] = useState<CourseItem | null>(null);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
-  const [chapterForm] = Form.useForm();
+  const [courseList, setCourseList] = useState<CourseItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const chapterForm = Form.useForm()[0];
+  const courseForm = Form.useForm()[0];
+
+  // 获取课程列表数据
+  const fetchCourseList = async () => {
+    setLoading(true);
+    try {
+      const res = await getCourseList({
+        page: 1,
+        pageSize: 1000, // 获取所有数据用于前端搜索
+      });
+      if (res && res.success) {
+        setCourseList(res.data);
+      }
+    } catch (error) {
+      message.error("获取课程列表失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCourseList();
+  }, []);
+
+  // 前端搜索函数
+  const handleSearch = async (params: any) => {
+    const { title } = params;
+    if (!title) {
+      return {
+        data: courseList,
+        success: true,
+        total: courseList.length,
+      };
+    }
+
+    const filteredData = courseList.filter((item) =>
+      item.title.toLowerCase().includes(title.toLowerCase())
+    );
+
+    return {
+      data: filteredData,
+      success: true,
+      total: filteredData.length,
+    };
+  };
 
   const renderMaterialTypeTag = (type: MaterialType) => {
-    const typeColors = {
+    if (!type) return null;
+    const typeColors: Record<MaterialType, string> = {
       video: "blue",
       pdf: "red",
       ppt: "orange",
     };
-    const typeNames = {
+    const typeNames: Record<MaterialType, string> = {
       video: "视频",
       pdf: "PDF",
       ppt: "PPT",
     };
-    return <Tag color={typeColors[type]}>{typeNames[type]}</Tag>;
+    const color = typeColors[type] || "default";
+    const name = typeNames[type] || "未知";
+    return <Tag color={color}>{name}</Tag>;
   };
 
-  const handleAddChapter = async (values: any) => {
+  const handleAddChapter = async (values: { title: string }) => {
     if (!currentCourse) return;
 
     const newChapter: Chapter = {
-      id: Date.now().toString(), // 简单的ID生成
-      name: values.name,
+      id: Date.now().toString(),
+      title: values.title,
       order: currentCourse.chapters.length + 1,
       materials: [],
     };
 
-    // 更新课程的章节列表
     const updatedCourse = {
       ...currentCourse,
       chapters: [...currentCourse.chapters, newChapter],
@@ -233,23 +147,62 @@ const CourseManagementPage: React.FC = () => {
     chapterForm.resetFields();
   };
 
-  const handleEditChapter = async (values: any) => {
+  const handleEditChapter = async (values: { title: string }) => {
     if (!currentCourse || !currentChapter) return;
 
-    const updatedChapters = currentCourse.chapters.map((chapter) =>
-      chapter.id === currentChapter.id
-        ? { ...chapter, name: values.name }
-        : chapter
-    );
+    try {
+      // 更新本地状态
+      setCurrentCourse((prevCourse) => {
+        if (!prevCourse) return null;
+        return {
+          ...prevCourse,
+          chapters: prevCourse.chapters.map((chapter) =>
+            chapter.id === currentChapter.id
+              ? { ...chapter, title: values.title }
+              : chapter
+          ),
+        };
+      });
 
-    setCurrentCourse({
-      ...currentCourse,
-      chapters: updatedChapters,
-    });
+      // 调用API更新章节
+      const res = await updateChapter(currentChapter.id, {
+        title: values.title,
+      });
 
-    message.success("更新章节成功");
-    setIsEditChapterModalVisible(false);
-    chapterForm.resetFields();
+      if (res.success) {
+        message.success("更新章节成功");
+        setIsEditChapterModalVisible(false);
+        chapterForm.resetFields();
+      } else {
+        message.error(res.message || "更新章节失败");
+        // 如果API调用失败，回滚本地状态
+        setCurrentCourse((prevCourse) => {
+          if (!prevCourse) return null;
+          return {
+            ...prevCourse,
+            chapters: prevCourse.chapters.map((chapter) =>
+              chapter.id === currentChapter.id
+                ? { ...chapter, title: currentChapter.title }
+                : chapter
+            ),
+          };
+        });
+      }
+    } catch (error) {
+      message.error("更新章节失败，请重试");
+      // 如果发生错误，回滚本地状态
+      setCurrentCourse((prevCourse) => {
+        if (!prevCourse) return null;
+        return {
+          ...prevCourse,
+          chapters: prevCourse.chapters.map((chapter) =>
+            chapter.id === currentChapter.id
+              ? { ...chapter, title: currentChapter.title }
+              : chapter
+          ),
+        };
+      });
+    }
   };
 
   const handleDeleteChapter = (chapterId: string) => {
@@ -260,7 +213,7 @@ const CourseManagementPage: React.FC = () => {
       content: "删除后将无法恢复，该章节下的所有资料也将被删除！",
       onOk: () => {
         const updatedChapters = currentCourse.chapters.filter(
-          (chapter) => chapter.id !== chapterId
+          (chapter: Chapter) => chapter.id !== chapterId
         );
         setCurrentCourse({
           ...currentCourse,
@@ -271,143 +224,222 @@ const CourseManagementPage: React.FC = () => {
     });
   };
 
-  const handleUploadMaterial = async (
-    chapterId: string,
-    file: any,
-    type: MaterialType
-  ) => {
-    if (!currentCourse) return;
-
-    const newMaterial: Material = {
-      id: Date.now().toString(),
-      name: file.name,
-      type,
-      url:
-        type === "video"
-          ? mockVideos[Math.floor(Math.random() * mockVideos.length)].url
-          : mockFiles[Math.floor(Math.random() * mockFiles.length)].url,
-      uploadTime: new Date().toISOString(),
-      status: "pending",
-      isSystem: false,
-    };
-
-    // 更新章节的资料列表
-    const updatedChapters = currentCourse.chapters.map((chapter) => {
-      if (chapter.id === chapterId) {
-        return {
-          ...chapter,
-          materials: [...chapter.materials, newMaterial],
-        };
+  const handleUploadMaterial = async (file: File) => {
+    try {
+      // 检查文件大小
+      if (file.size === 0) {
+        message.error("文件大小为0，请选择有效的文件");
+        return;
       }
-      return chapter;
-    });
 
-    const updatedCourse = {
-      ...currentCourse,
-      chapters: updatedChapters,
-    };
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("chapterId", currentChapter?.id || "");
+      formData.append("fileName", file.name);
 
-    setCurrentCourse(updatedCourse);
+      // 获取 token
+      const token = JSON.parse(localStorage.getItem("userInfo") || "{}").state
+        .token;
+      if (!token) {
+        message.error("未登录或登录已过期");
+        return;
+      }
 
-    // 更新当前章节
-    const updatedChapter = updatedChapters.find(
-      (chapter) => chapter.id === chapterId
-    );
-    if (updatedChapter) {
-      setCurrentChapter(updatedChapter);
+      // 在 formData 中添加 token
+      formData.append("token", token);
+
+      console.log("开始上传文件:", {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+      });
+
+      const response = await uploadFile(formData);
+      console.log("上传响应:", response);
+
+      if (response.success && currentChapter) {
+        // 更新当前章节的材料列表
+        const newMaterial: Material = {
+          id: response.data.id.toString(),
+          title: response.data.fileName,
+          type: response.data.fileType as MaterialType,
+          url: response.data.url,
+          uploadTime: response.data.created_at,
+          status: "pending",
+          isSystem: false,
+        };
+
+        setCurrentChapter((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            materials: [...prev.materials, newMaterial],
+          };
+        });
+
+        message.success("上传成功，等待审核");
+      } else {
+        message.error(response.message || "上传失败");
+      }
+    } catch (error) {
+      console.error("上传文件失败:", error);
+      message.error("上传文件失败，请重试");
     }
-
-    message.success("上传资料成功，等待审核");
   };
 
-  // 添加审核资料函数
-  const handleReviewMaterial = (
+  const handleReviewMaterial = async (
     chapterId: string,
     materialId: string,
     approved: boolean
   ) => {
     if (!currentCourse) return;
 
-    const updatedChapters = currentCourse.chapters.map((chapter) => {
-      if (chapter.id === chapterId) {
-        return {
-          ...chapter,
-          materials: chapter.materials.map((material) => {
-            if (material.id === materialId) {
-              return {
-                ...material,
-                status: approved ? "approved" : "rejected",
-              };
-            }
-            return material;
-          }),
-        };
-      }
-      return chapter;
-    });
-
-    const updatedCourse = {
-      ...currentCourse,
-      chapters: updatedChapters,
-    };
-
-    setCurrentCourse(updatedCourse);
-
-    // 更新当前章节
-    const updatedChapter = updatedChapters.find(
-      (chapter) => chapter.id === chapterId
-    );
-    if (updatedChapter) {
-      setCurrentChapter(updatedChapter);
-    }
-
-    message.success(`资料已${approved ? "通过" : "拒绝"}审核`);
-  };
-
-  const handleDeleteMaterial = (chapterId: string, materialId: string) => {
-    if (!currentCourse) return;
-
     Modal.confirm({
-      title: "确定要删除该资料吗？",
-      content: "删除后将无法恢复！",
-      onOk: () => {
-        const updatedChapters = currentCourse.chapters.map((chapter) => {
-          if (chapter.id === chapterId) {
-            return {
-              ...chapter,
-              materials: chapter.materials.filter(
-                (material) => material.id !== materialId
-              ),
-            };
+      title: "确认审核",
+      content: `确定要${approved ? "通过" : "拒绝"}这个资料吗？`,
+      onOk: async () => {
+        try {
+          const res = await reviewMaterial(materialId, approved);
+          if (res.success) {
+            // 重新获取章节详情
+            const chapterRes = await getChapterDetail(chapterId);
+            if (chapterRes.success && chapterRes.data) {
+              // 更新 currentChapter
+              setCurrentChapter(chapterRes.data);
+
+              // 更新 currentCourse 中的章节数据
+              setCurrentCourse((prevCourse) => {
+                if (!prevCourse) return null;
+                const updatedChapters = prevCourse.chapters.map((chapter) =>
+                  chapter.id === chapterId ? chapterRes.data : chapter
+                ) as Chapter[];
+                return {
+                  ...prevCourse,
+                  chapters: updatedChapters,
+                };
+              });
+            }
+
+            message.success(`${approved ? "通过" : "拒绝"}成功`);
           }
-          return chapter;
-        });
-
-        const updatedCourse = {
-          ...currentCourse,
-          chapters: updatedChapters,
-        };
-
-        setCurrentCourse(updatedCourse);
-
-        // 更新当前章节
-        const updatedChapter = updatedChapters.find(
-          (chapter) => chapter.id === chapterId
-        );
-        if (updatedChapter) {
-          setCurrentChapter(updatedChapter);
+        } catch (error) {
+          message.error("审核失败");
         }
-
-        message.success("删除资料成功");
       },
     });
   };
 
-  // 资料列表列定义
+  const handleDeleteMaterial = async (
+    chapterId: string,
+    materialId: string
+  ) => {
+    if (!currentCourse) return;
+
+    Modal.confirm({
+      title: "确认删除",
+      content: "确定要删除这个资料吗？删除后将无法恢复！",
+      onOk: async () => {
+        try {
+          const res = await deleteMaterial(materialId);
+          if (res.success) {
+            // 更新本地状态
+            setCurrentCourse((prevCourse) => {
+              if (!prevCourse) return null;
+              return {
+                ...prevCourse,
+                chapters: prevCourse.chapters.map((chapter) => {
+                  if (chapter.id === chapterId) {
+                    return {
+                      ...chapter,
+                      materials: chapter.materials.filter(
+                        (material) => material.id !== materialId
+                      ),
+                    };
+                  }
+                  return chapter;
+                }),
+              };
+            });
+
+            // 如果当前正在查看的章节是被删除资料的章节，更新当前章节
+            if (currentChapter?.id === chapterId) {
+              setCurrentChapter((prevChapter) => {
+                if (!prevChapter) return null;
+                return {
+                  ...prevChapter,
+                  materials: prevChapter.materials.filter(
+                    (material) => material.id !== materialId
+                  ),
+                };
+              });
+            }
+
+            message.success("删除成功");
+          } else {
+            message.error(res.message || "删除失败");
+          }
+        } catch (error) {
+          message.error("删除失败，请重试");
+        }
+      },
+    });
+  };
+
+  const handleAddCourse = async (values: any) => {
+    const res = await createCourse({
+      title: values.title,
+      description: values.description,
+      status: "draft",
+      // cover: 可选，按需传递
+    });
+    if (res.success) {
+      message.success("新增课程成功");
+      setIsAddCourseModalVisible(false);
+      courseForm.resetFields();
+      actionRef.current?.reload();
+    } else {
+      message.error(res.message || "新增课程失败");
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: string) => {
+    try {
+      const res = await deleteCourse(courseId);
+      if (res.success) {
+        message.success("删除成功");
+        // 更新本地状态
+        setCourseList((prevList) =>
+          prevList.filter((course) => course.id !== courseId)
+        );
+        // 强制刷新表格
+        actionRef.current?.reload();
+      } else {
+        message.error(res.message || "删除失败");
+      }
+    } catch (error) {
+      message.error("删除失败，请重试");
+    }
+  };
+
+  // 获取课程详情
+  const handleGetCourseDetail = async (courseId: string) => {
+    try {
+      const res = await getCourseDetail(courseId);
+      if (res && res.success && res.data) {
+        setCurrentCourse(res.data);
+        setIsChapterModalVisible(true);
+      } else {
+        message.error("获取课程详情失败");
+      }
+    } catch (error) {
+      message.error("获取课程详情失败");
+    }
+  };
+
   const materialColumns = [
     {
       title: "资料名称",
-      dataIndex: "name",
+      dataIndex: "title",
     },
     {
       title: "类型",
@@ -426,21 +458,40 @@ const CourseManagementPage: React.FC = () => {
     {
       title: "状态",
       dataIndex: "status",
-      render: (status: "pending" | "approved" | "rejected") => {
+      render: (status?: "pending" | "approved" | "rejected") => {
         const statusMap = {
           pending: { color: "orange", text: "待审核" },
           approved: { color: "green", text: "已通过" },
           rejected: { color: "red", text: "已拒绝" },
+          default: { color: "default", text: "未知" },
         };
+        const currentStatus = status || "default";
         return (
-          <Tag color={statusMap[status].color}>{statusMap[status].text}</Tag>
+          <Tag color={statusMap[currentStatus]?.color}>
+            {statusMap[currentStatus].text}
+          </Tag>
         );
       },
     },
     {
       title: "上传时间",
-      dataIndex: "uploadTime",
-      render: (time: string) => new Date(time).toLocaleString(),
+      dataIndex: "upload_time",
+      render: (time: string) => {
+        if (!time) return "-";
+        try {
+          // 确保时间格式正确
+          const date = new Date(time);
+          if (isNaN(date.getTime())) {
+            // 如果时间格式不正确，尝试转换格式
+            const formattedTime = time.replace(" ", "T");
+            const newDate = new Date(formattedTime);
+            return isNaN(newDate.getTime()) ? "-" : newDate.toLocaleString();
+          }
+          return date.toLocaleString();
+        } catch (error) {
+          return "-";
+        }
+      },
     },
     {
       title: "操作",
@@ -449,7 +500,20 @@ const CourseManagementPage: React.FC = () => {
         <Space>
           <Button
             type="link"
-            onClick={() => window.open(material.url, "_blank")}
+            onClick={() => {
+              if (material.url) {
+                try {
+                  // 检查URL是否有效
+                  new URL(material.url);
+                  window.open(material.url, "_blank");
+                } catch (error) {
+                  message.error("无效的URL地址");
+                }
+              } else {
+                message.error("资料URL不存在");
+              }
+            }}
+            disabled={!material.url}
           >
             查看
           </Button>
@@ -497,7 +561,7 @@ const CourseManagementPage: React.FC = () => {
     },
     {
       title: "章节名称",
-      dataIndex: "name",
+      dataIndex: "title",
     },
     {
       title: "资料数量",
@@ -551,13 +615,13 @@ const CourseManagementPage: React.FC = () => {
     },
     {
       title: "课程ID",
-      dataIndex: "courseId",
+      dataIndex: "id",
       copyable: true,
       width: 120,
     },
     {
       title: "课程名称",
-      dataIndex: "courseName",
+      dataIndex: "title",
       copyable: true,
       ellipsis: true,
       width: 200,
@@ -572,10 +636,32 @@ const CourseManagementPage: React.FC = () => {
       },
     },
     {
-      title: "章节数量",
-      dataIndex: "chapters",
+      title: "课程评分",
+      dataIndex: "rating",
       width: 100,
-      render: (_, record) => record.chapters.length,
+      render: (_, record) => {
+        const rating = Number(record.rating);
+        return `${isNaN(rating) ? 0 : rating.toFixed(1)}分`;
+      },
+      sorter: (a, b) => {
+        const ratingA = Number(a.rating);
+        const ratingB = Number(b.rating);
+        return (isNaN(ratingA) ? 0 : ratingA) - (isNaN(ratingB) ? 0 : ratingB);
+      },
+      formItemProps: {
+        rules: [
+          {
+            required: true,
+            message: "此项为必填项",
+          },
+          {
+            type: "number",
+            min: 0,
+            max: 5,
+            message: "评分必须在0-5分之间",
+          },
+        ],
+      },
     },
     {
       title: "创建时间",
@@ -587,48 +673,46 @@ const CourseManagementPage: React.FC = () => {
     },
     {
       title: "发布状态",
-      dataIndex: "isVisible",
+      dataIndex: "status",
       width: 100,
-      render: (_, record) => (
-        <Switch
-          checked={record.isVisible}
-          onChange={(checked) => {
-            // 更新课程状态
-            const updatedCourses = mockCourses.map((course) => {
-              if (course.id === record.id) {
-                return {
-                  ...course,
-                  isVisible: checked,
-                };
-              }
-              return course;
-            });
-            // 更新mockCourses
-            mockCourses.length = 0;
-            mockCourses.push(...updatedCourses);
-            message.success(`课程已${checked ? "发布" : "下架"}`);
-            // 刷新表格
-            actionRef.current?.reload();
-          }}
-        />
-      ),
+      valueEnum: {
+        draft: { text: "草稿", status: "Default" },
+        published: { text: "已发布", status: "Success" },
+        archived: { text: "已归档", status: "Error" },
+      },
     },
     {
       title: "操作",
       valueType: "option",
-      width: 180,
+      width: 280,
       render: (_, record) => [
         <Button
           key="chapters"
           type="link"
           icon={<FolderOutlined />}
-          onClick={() => {
-            setCurrentCourse(record);
-            setIsChapterModalVisible(true);
-          }}
+          onClick={() => handleGetCourseDetail(record.id)}
         >
           章节管理
         </Button>,
+        record.status === "draft" && (
+          <Button
+            key="publish"
+            type="link"
+            onClick={() => handleUpdateCourseStatus(record.id, "published")}
+          >
+            发布
+          </Button>
+        ),
+        record.status === "published" && (
+          <Button
+            key="archive"
+            type="link"
+            danger
+            onClick={() => handleUpdateCourseStatus(record.id, "archived")}
+          >
+            归档
+          </Button>
+        ),
         <Button
           key="delete"
           type="link"
@@ -637,18 +721,7 @@ const CourseManagementPage: React.FC = () => {
             Modal.confirm({
               title: "确定要删除该课程吗？",
               content: "删除后将无法恢复，请谨慎操作！",
-              onOk: () => {
-                // 从mockCourses中删除课程
-                const updatedCourses = mockCourses.filter(
-                  (course) => course.id !== record.id
-                );
-                // 更新mockCourses
-                mockCourses.length = 0;
-                mockCourses.push(...updatedCourses);
-                message.success("删除成功");
-                // 刷新表格
-                actionRef.current?.reload();
-              },
+              onOk: () => handleDeleteCourse(record.id),
             });
           }}
         >
@@ -658,26 +731,63 @@ const CourseManagementPage: React.FC = () => {
     },
   ];
 
+  // 更新课程状态
+  const handleUpdateCourseStatus = async (
+    courseId: string,
+    status: "draft" | "published" | "archived"
+  ) => {
+    try {
+      // 先更新本地状态
+      setCourseList((prevList) =>
+        prevList.map((course) =>
+          course.id === courseId ? { ...course, status } : course
+        )
+      );
+      actionRef.current?.reload();
+
+      const res = await updateCourse(courseId, {
+        status,
+      });
+      if (res.success) {
+        message.success(status === "published" ? "课程已发布" : "课程已归档");
+      } else {
+        message.error(res.message || "操作失败");
+        // 如果API调用失败，回滚本地状态
+        setCourseList((prevList) =>
+          prevList.map((course) =>
+            course.id === courseId
+              ? { ...course, status: course.status }
+              : course
+          )
+        );
+        actionRef.current?.reload();
+      }
+    } catch (error) {
+      message.error("操作失败，请重试");
+      // 如果发生错误，回滚本地状态
+      setCourseList((prevList) =>
+        prevList.map((course) =>
+          course.id === courseId ? { ...course, status: course.status } : course
+        )
+      );
+      actionRef.current?.reload();
+    }
+  };
+
   return (
     <>
       <ProTable<CourseItem>
         columns={columns}
         actionRef={actionRef}
         cardBordered
+        loading={loading}
+        dataSource={courseList}
         request={async (params) => {
-          await waitTime(500);
-          let filteredData = [...mockCourses];
-
-          if (params.courseName) {
-            filteredData = filteredData.filter((course) =>
-              course.courseName.includes(params.courseName)
-            );
-          }
-
+          const result = await handleSearch(params);
           return {
-            data: filteredData,
-            success: true,
-            total: filteredData.length,
+            data: result.data,
+            success: result.success,
+            total: result.total,
           };
         }}
         rowKey="id"
@@ -690,7 +800,7 @@ const CourseManagementPage: React.FC = () => {
             type="primary"
             icon={<PlusOutlined />}
             onClick={() => {
-              // 打开新增课程表单
+              setIsAddCourseModalVisible(true);
             }}
           >
             新增课程
@@ -698,9 +808,32 @@ const CourseManagementPage: React.FC = () => {
         ]}
       />
 
-      {/* 章节管理弹窗 */}
       <Modal
-        title={`${currentCourse?.courseName || ""} - 章节管理`}
+        title="新增课程"
+        visible={isAddCourseModalVisible}
+        onCancel={() => setIsAddCourseModalVisible(false)}
+        onOk={() => courseForm.submit()}
+      >
+        <Form form={courseForm} onFinish={handleAddCourse} layout="vertical">
+          <Form.Item
+            name="title"
+            label="课程名称"
+            rules={[{ required: true, message: "请输入课程名称" }]}
+          >
+            <Input placeholder="请输入课程名称" />
+          </Form.Item>
+          <Form.Item
+            name="description"
+            label="课程描述"
+            rules={[{ required: true, message: "请输入课程描述" }]}
+          >
+            <Input.TextArea placeholder="请输入课程描述" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={`${currentCourse?.title || ""} - 章节管理`}
         visible={isChapterModalVisible}
         onCancel={() => setIsChapterModalVisible(false)}
         width={800}
@@ -730,7 +863,6 @@ const CourseManagementPage: React.FC = () => {
         />
       </Modal>
 
-      {/* 新增/编辑章节弹窗 */}
       <Modal
         title={currentChapter ? "编辑章节" : "新增章节"}
         visible={isEditChapterModalVisible}
@@ -742,7 +874,7 @@ const CourseManagementPage: React.FC = () => {
           onFinish={currentChapter ? handleEditChapter : handleAddChapter}
         >
           <Form.Item
-            name="name"
+            name="title"
             label="章节名称"
             rules={[{ required: true, message: "请输入章节名称" }]}
           >
@@ -751,9 +883,8 @@ const CourseManagementPage: React.FC = () => {
         </Form>
       </Modal>
 
-      {/* 资料管理弹窗 */}
       <Modal
-        title={`${currentChapter?.name || ""} - 资料管理`}
+        title={`${currentChapter?.title || ""} - 资料管理`}
         visible={isMaterialModalVisible}
         onCancel={() => setIsMaterialModalVisible(false)}
         width={800}
@@ -763,13 +894,7 @@ const CourseManagementPage: React.FC = () => {
             showUploadList={false}
             customRequest={({ file }) => {
               if (currentChapter) {
-                const fileName = (file as File).name.toLowerCase();
-                const fileType = fileName.endsWith(".mp4")
-                  ? "video"
-                  : fileName.endsWith(".pdf")
-                  ? "pdf"
-                  : "ppt";
-                handleUploadMaterial(currentChapter.id, file, fileType);
+                handleUploadMaterial(file as File);
               }
             }}
           >
@@ -782,7 +907,14 @@ const CourseManagementPage: React.FC = () => {
       >
         <Table
           columns={materialColumns}
-          dataSource={currentChapter?.materials || []}
+          dataSource={
+            currentChapter?.materials?.map((material) => {
+              return {
+                ...material,
+                status: material.status || "pending",
+              };
+            }) || []
+          }
           rowKey="id"
           pagination={false}
         />

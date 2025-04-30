@@ -9,14 +9,13 @@ import Taro, {
 
 import { useState, useEffect } from 'react';
 
-import NavigationBar from '@/components/NavigationBar';
+import NavigationBar from '@/components/navigationBar';
 import './index.less';
 
 const PinchPage = () => {
   const router = useRouter();
   const [imageUrl, setImageUrl] = useState<string>('');
-  // 新增：存储从路由参数获取的事件类型
-  const [eventType, setEventType] = useState<string>('updateBgImage'); // 默认是更新背景
+  const [eventType, setEventType] = useState<string>('updateBgImage');
 
   useEffect(() => {
     if (router.params.imageUrl) {
@@ -36,11 +35,7 @@ const PinchPage = () => {
         const tempFilePath = res.tempFilePaths[0];
         console.log('选择的图片:', tempFilePath);
 
-        // --- 图片上传逻辑示例 ---
-        // 假设上传成功，获取到 newUploadedUrl
-        const newUploadedUrl = tempFilePath; // 替换为实际上传后的 URL
-        // uploadFile({ ..., success: (uploadRes) => { newUploadedUrl = ... } })
-        // --- 图片上传逻辑结束 ---
+        const newUploadedUrl = tempFilePath;
 
         const instance = getCurrentInstance();
         const eventChannel = instance.page?.getOpenerEventChannel();
@@ -50,10 +45,8 @@ const PinchPage = () => {
             `PinchPage emitting event '${eventType}' with url:`,
             newUploadedUrl
           );
-          // 使用从路由参数获取的 eventType 来发送事件
           eventChannel.emit(eventType, { newImageUrl: newUploadedUrl });
 
-          // 更新当前页面的预览（可选）
           setImageUrl(newUploadedUrl);
 
           Taro.showToast({

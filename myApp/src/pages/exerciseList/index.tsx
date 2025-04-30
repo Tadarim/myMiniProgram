@@ -4,8 +4,8 @@ import { navigateTo } from '@tarojs/taro';
 import { Edit, Search } from '@nutui/icons-react-taro';
 import React from 'react';
 
-import List from '@/components/List';
-import NavigationBar from '@/components/NavigationBar';
+import List from '@/components/list';
+import NavigationBar from '@/components/navigationBar';
 import { genUrl } from '@/utils';
 
 import './index.less';

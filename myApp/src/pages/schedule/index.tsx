@@ -6,9 +6,9 @@ import { useState } from 'react';
 import { PopupRender } from './components/popup';
 import { ScheduleItem } from './components/scheduleItem';
 
-import { MyEmpty } from '@/components/Empty';
-import NavigationBar from '@/components/NavigationBar';
-import Title from '@/components/Title';
+import { MyEmpty } from '@/components/empty';
+import NavigationBar from '@/components/navigationBar';
+import Title from '@/components/title';
 
 import './index.less';
 

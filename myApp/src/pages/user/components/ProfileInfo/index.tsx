@@ -7,14 +7,13 @@ import { genUrl } from '@/utils';
 
 import './index.less';
 
-// 定义 Props 接口，接收来自父组件的数据和回调
 interface ProfileInfoProps {
   avatarUrl: string;
   username: string;
   description: string;
   tags: string[];
   records: { count: number | string; text: string }[];
-  onAvatarChange: (newAvatarUrl: string) => void; // 头像更新回调
+  onAvatarChange: (newAvatarUrl: string) => void;
 }
 
 const ProfileInfo = ({
@@ -25,7 +24,6 @@ const ProfileInfo = ({
   records,
   onAvatarChange
 }: ProfileInfoProps) => {
-  // 头像点击事件处理
   const handleAvatarClick = () => {
     navigateTo({
       url: genUrl('/pages/pinchPage/index', {
@@ -50,13 +48,9 @@ const ProfileInfo = ({
     });
   };
 
-  // 编辑资料按钮点击事件
   const handleEditProfile = () => {
-    // 跳转到编辑资料页
     navigateTo({
       url: '/pages/editProfile/index'
-      // 可以考虑在这里传递当前用户信息给编辑页
-      // url: genUrl('/pages/editProfile/index', { userId: '...' })
     });
   };
 
@@ -97,7 +91,7 @@ const ProfileInfo = ({
             type='primary'
             style={{ color: '#8a8585', background: '#eae5e5' }}
             className='profile-info-btn'
-            onClick={handleEditProfile} // <--- 绑定跳转事件
+            onClick={handleEditProfile}
           >
             编辑资料
           </Button>

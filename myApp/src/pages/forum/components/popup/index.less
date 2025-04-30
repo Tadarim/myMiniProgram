@@ -1,0 +1,31 @@
+.post-type-selector {
+  display: flex;
+  gap: 10px;
+  margin: 10px 0;
+
+  .type-option {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+    color: #666;
+    font-size: 14px;
+
+    &.selected {
+      background-color: @primary-color;
+      color: #fff;
+    }
+  }
+}
+
+.tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0;
+
+  .nut-tag {
+    margin: 0;
+  }
+}

@@ -1,6 +1,6 @@
 import { View } from '@tarojs/components';
 
-import List from '@/components/List';
+import List from '@/components/list';
 
 interface CourseItem {
   id: number | string;

@@ -9,24 +9,14 @@ import {
   HeartFill,
   Comment
 } from '@nutui/icons-react-taro';
+import { Tag } from '@nutui/nutui-react-taro';
 import React, { useState } from 'react';
+
+import { Post } from '@/types/post';
 
 import './index.less';
 
-// 定义 PostItem 接收的 Props 类型
-interface PostItemProps {
-  id: number;
-  authorId: number;
-  avatar: string;
-  username: string;
-  timeAgo: string;
-  content: string;
-  backgroundImage?: string;
-  likes: number;
-  comments: number;
-  isLiked: boolean;
-  isCollected: boolean;
-}
+interface PostItemProps extends Post {}
 
 const PostItem: React.FC<PostItemProps> = ({
   id,
@@ -39,7 +29,11 @@ const PostItem: React.FC<PostItemProps> = ({
   likes,
   comments,
   isLiked,
-  isCollected
+  isCollected,
+  type,
+  rewardPoints,
+  status,
+  tags
 }) => {
   const [isMenuVisible, setIsMenuVisible] = useState(false);
   const [currentUserLiked, setCurrentUserLiked] = useState(isLiked);
@@ -98,6 +92,12 @@ const PostItem: React.FC<PostItemProps> = ({
             <Text className='time-ago'>{timeAgo}</Text>
           </View>
         </View>
+        {type === 'help' && (
+          <View className='help-badge'>
+            <Text className='help-status'>{status === 'open' ? '求助中' : '已解决'}</Text>
+            <Text className='reward-points'>{rewardPoints}积分</Text>
+          </View>
+        )}
         <View className='options-button' onClick={toggleMenu}>
           <More size={20} />
           {isMenuVisible && (
@@ -113,22 +113,28 @@ const PostItem: React.FC<PostItemProps> = ({
         </View>
       </View>
 
-      {/* 帖子内容 */}
       <View className='post-content'>
         <Text className='content-text'>{content}</Text>
       </View>
+
+      {tags && tags.length > 0 && (
+        <View className='post-tags'>
+          {tags.map(tag => (
+            <Tag key={tag} type='primary'>{tag}</Tag>
+          ))}
+        </View>
+      )}
 
       {postImage && (
         <View className='post-image-container'>
           <Image
             className='post-image'
             src={postImage}
-            mode='aspectFill' // 或 'widthFix' 根据需要选择
+            mode='aspectFill'
           />
         </View>
       )}
 
-      {/* 帖子底部交互 */}
       <View className='post-footer'>
         <View className='interaction'>
           <View className='interaction-item' onClick={handleLikeClick}>
