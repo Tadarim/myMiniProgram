@@ -348,15 +348,15 @@ const ChapterDetail = () => {
                     <Text className='material-name'>{material.title}</Text>
                   </View>
                   <View className='material-actions'>
-                    <Button
-                      className='download-button'
-                      type='primary'
-                      size='mini'
-                      onClick={() => handleDownload(material)}
+                  <Button
+                    className='download-button'
+                    type='primary'
+                    size='mini'
+                    onClick={() => handleDownload(material)}
                       disabled={material.status !== 'approved' || !material.url}
-                    >
-                      {getButtonText(material.type)}
-                    </Button>
+                  >
+                    {getButtonText(material.type)}
+                  </Button>
                   </View>
                 </View>
               )}

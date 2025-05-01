@@ -14,13 +14,16 @@ import { ApiResponse } from "../types/common";
 import { query, getConnection } from "../utils/query";
 import { RowDataPacket, ResultSetHeader } from "mysql2";
 import { pool } from "../utils/pool";
+import { RequestHandler } from "express";
 
 // 获取课程列表
-export const getCourseList = async (req: Request, res: Response) => {
+export const getCourseList: RequestHandler = async (req, res) => {
   try {
-    const { page = 1, pageSize = 10, keyword = "" } = req.query as CourseQuery;
+    const { page = 1, pageSize = 10, keyword = "" } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
-    const userId = req.user?.id; // 从认证中间件获取用户ID
+    const auth = req.auth as { id: number; role: "admin" | "user" } | undefined;
+    const userId = auth?.id;
+    const isAdmin = auth?.role === "admin";
 
     let sql = `
       SELECT 
@@ -40,10 +43,18 @@ export const getCourseList = async (req: Request, res: Response) => {
     `;
 
     const params: any[] = [userId];
+    
+    // 如果不是管理员，只返回已发布的课程
+    if (!isAdmin) {
+      sql += " WHERE c.status = 'published'";
+    }
+    
     if (keyword) {
-      sql += " WHERE c.title LIKE ? OR c.description LIKE ?";
+      sql += isAdmin ? " WHERE " : " AND ";
+      sql += "c.title LIKE ? OR c.description LIKE ?";
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
+    
     sql += " ORDER BY c.created_at DESC LIMIT ? OFFSET ?";
     params.push(Number(pageSize), offset);
 
@@ -53,7 +64,8 @@ export const getCourseList = async (req: Request, res: Response) => {
     const countSql = `
       SELECT COUNT(*) as total 
       FROM courses c
-      ${keyword ? "WHERE c.title LIKE ? OR c.description LIKE ?" : ""}
+      ${!isAdmin ? "WHERE c.status = 'published'" : ""}
+      ${keyword ? (isAdmin ? "WHERE" : "AND") + " c.title LIKE ? OR c.description LIKE ?" : ""}
     `;
     const countParams = keyword ? [`%${keyword}%`, `%${keyword}%`] : [];
     const [{ total }] = await query<RowDataPacket[]>(countSql, countParams);
@@ -190,6 +202,22 @@ export const getCourseDetail = async (req: Request, res: Response) => {
 export const createCourse = async (req: Request, res: Response) => {
   try {
     const courseData = req.body as CourseCreate;
+
+    // 检查课程名是否已存在
+    const checkSql = "SELECT id FROM courses WHERE title = ?";
+    const existingCourse = await query<RowDataPacket[]>(checkSql, [
+      courseData.title,
+    ]);
+
+    if (existingCourse.length > 0) {
+      return res.status(400).json({
+        code: 400,
+        data: null,
+        success: false,
+        message: "课程名已存在",
+      });
+    }
+
     const sql = `
       INSERT INTO courses (
         title,
@@ -342,8 +370,8 @@ export const deleteCourse = async (req: Request, res: Response) => {
 export const rateCourse = async (req: Request, res: Response) => {
   try {
     const { courseId } = req.params;
-    const { rating, comment } = req.body;
-    const userId = req.user?.id; // 从认证中间件获取用户ID
+    const { rating } = req.body;
+    const userId = req.auth?.id; // 从认证中间件获取用户ID
 
     if (!userId) {
       return res.status(401).json({
@@ -364,48 +392,34 @@ export const rateCourse = async (req: Request, res: Response) => {
       });
     }
 
-    // 开始事务
-    const connection = await getConnection();
-    await connection.beginTransaction();
+    // 检查课程是否存在
+    const checkSql = "SELECT id FROM courses WHERE id = ?";
+    const [course] = await query<RowDataPacket[]>(checkSql, [courseId]);
 
-    try {
-      // 插入或更新评分记录
-      const ratingSql = `
-        INSERT INTO course_ratings (course_id, user_id, rating, comment)
-        VALUES (?, ?, ?, ?)
-        ON DUPLICATE KEY UPDATE
-        rating = VALUES(rating),
-        comment = VALUES(comment)
-      `;
-      await query(ratingSql, [courseId, userId, rating, comment]);
-
-      // 更新课程的平均评分
-      const updateRatingSql = `
-        UPDATE courses c
-        SET rating = (
-          SELECT AVG(rating)
-          FROM course_ratings
-          WHERE course_id = ?
-        )
-        WHERE id = ?
-      `;
-      await query(updateRatingSql, [courseId, courseId]);
-
-      await connection.commit();
-
-      const response: ApiResponse<null> = {
-        code: 200,
+    if (!course) {
+      return res.status(404).json({
+        code: 404,
         data: null,
-        success: true,
-        message: "评分成功",
-      };
-      res.json(response);
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
+        success: false,
+        message: "课程不存在",
+      });
     }
+
+    // 更新课程评分
+    const sql = `
+      UPDATE courses 
+      SET rating = ?
+      WHERE id = ?
+    `;
+    await query(sql, [rating, courseId]);
+
+    const response: ApiResponse<null> = {
+      code: 200,
+      data: null,
+      success: true,
+      message: "评分成功",
+    };
+    res.json(response);
   } catch (error) {
     console.error("评分失败:", error);
     res.status(500).json({
@@ -417,85 +431,57 @@ export const rateCourse = async (req: Request, res: Response) => {
   }
 };
 
-// 获取课程评分列表
-export const getCourseRatings = async (req: Request, res: Response) => {
+// 创建章节
+export const createChapter = async (req: Request, res: Response) => {
   try {
-    const { courseId } = req.params;
-    const { page = 1, pageSize = 10 } = req.query;
-    const offset = (Number(page) - 1) * Number(pageSize);
+    const { courseId, title } = req.body;
 
-    const sql = `
-      SELECT 
-        r.id,
-        r.user_id as userId,
-        r.rating,
-        r.comment,
-        r.created_at as createdAt,
-        u.username,
-        u.avatar
-      FROM course_ratings r
-      LEFT JOIN users u ON r.user_id = u.id
-      WHERE r.course_id = ?
-      ORDER BY r.created_at DESC
-      LIMIT ? OFFSET ?
-    `;
+    // 检查章节名是否已存在
+    const checkSql =
+      "SELECT id FROM chapters WHERE course_id = ? AND title = ?";
+    const existingChapter = await query<RowDataPacket[]>(checkSql, [
+      courseId,
+      title,
+    ]);
 
-    const ratings = await query(sql, [courseId, Number(pageSize), offset]);
+    if (existingChapter.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "该课程下已存在同名章节",
+      });
+    }
 
-    // 获取总数
-    const countSql =
-      "SELECT COUNT(*) as total FROM course_ratings WHERE course_id = ?";
-    const result = await query<RowDataPacket[]>(countSql, [courseId]);
-    const total = result[0]?.total || 0;
+    // 获取当前课程的最大 order_num
+    const maxOrderResult = await query<RowDataPacket[]>(
+      "SELECT MAX(order_num) as maxOrder FROM chapters WHERE course_id = ?",
+      [courseId]
+    );
+    const maxOrder = maxOrderResult[0]?.maxOrder || 0;
 
-    const response: ApiResponse<any> = {
-      code: 200,
-      data: {
-        ratings,
-        total,
-      },
+    // 插入新章节
+    const result = await query<ResultSetHeader>(
+      "INSERT INTO chapters (course_id, title, order_num) VALUES (?, ?, ?)",
+      [courseId, title, maxOrder + 1]
+    );
+
+    res.json({
       success: true,
-    };
-
-    res.json(response);
-  } catch (error) {
-    console.error("获取课程评分列表失败:", error);
+      message: "创建章节成功",
+      data: {
+        id: result.insertId,
+        title,
+        order_num: maxOrder + 1,
+      },
+    });
+  } catch (error: any) {
+    console.error("创建章节失败:", error);
     res.status(500).json({
-      code: 500,
-      data: null,
       success: false,
-      message: "获取课程评分列表失败",
+      message: "创建章节失败",
+      error: error.message,
     });
   }
 };
-
-// 创建章节
-export async function createChapter(req: Request, res: Response) {
-  try {
-    const { courseId, title } = req.body;
-    
-    if (!courseId || !title) {
-      return res.status(400).json({ error: "缺少必要参数" });
-    }
-
-    const result = await query<ResultSetHeader>(
-      `INSERT INTO chapters (course_id, title) 
-       VALUES (?, ?)`,
-      [courseId, title]
-    );
-
-    const chapterId = result.insertId;
-    const [chapter] = await query<ChapterRow[]>(
-      `SELECT * FROM chapters WHERE id = ?`,
-      [chapterId]
-    );
-
-    res.status(201).json(chapter[0]);
-  } catch (error) {
-    console.error("创建章节失败:", error);
-    res.status(500).json({ error: "创建章节失败" });
-  }
-}
 
 // 更新章节
 export const updateChapter = async (req: Request, res: Response) => {

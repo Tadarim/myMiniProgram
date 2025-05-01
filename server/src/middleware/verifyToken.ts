@@ -6,6 +6,10 @@ declare global {
     interface Request {
       auth?: {
         id: number;
+        role: "admin" | "user";
+      };
+      user?: {
+        id: number;
       };
     }
   }
@@ -13,7 +17,7 @@ declare global {
 
 const verifyTokenMiddleware = () => {
   return jwt({
-    secret: process.env.JWT_SECRET || "xuxinyu.tadarim",
+    secret: process.env.JWT_SECRET || "your-secret-key",
     algorithms: ["HS256"],
     credentialsRequired: true,
     getToken: function fromHeaderOrQuerystring(req: Request) {
@@ -24,7 +28,6 @@ const verifyTokenMiddleware = () => {
         const token = req.headers.authorization.split(" ")[1];
         return token;
       }
-
       return undefined;
     },
     requestProperty: "auth",
@@ -43,4 +46,4 @@ const setUserFromToken = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-export { verifyTokenMiddleware, setUserFromToken };
+export { verifyTokenMiddleware, setUserFromToken }; 

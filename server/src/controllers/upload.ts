@@ -6,6 +6,7 @@ import * as fsPromises from "fs/promises";
 import qiniu from "qiniu";
 import { pipeline } from "stream/promises";
 import dotenv from "dotenv";
+import { RowDataPacket } from "mysql2";
 
 import { formatDateToMySQL } from "../utils/formatDate";
 import { query } from "../utils/query";
@@ -204,11 +205,13 @@ export const uploadMaterial = async (req: Request, res: Response) => {
     const file = Array.isArray(req.files.file) ? req.files.file[0] : req.files.file;
     const fileName = req.body.fileName || file.name;
     const chapterId = req.body.chapterId;
+    const type = req.body.type; // 获取上传类型
 
     console.log("收到上传请求:", {
       fileName,
       fileSize: file.size,
       chapterId,
+      type,
       mimeType: file.mimetype,
       path: file.tempFilePath
     });
@@ -225,6 +228,59 @@ export const uploadMaterial = async (req: Request, res: Response) => {
     if (stats.size === 0) {
       console.error("文件大小为0:", file.tempFilePath);
       return res.status(400).json({ error: "文件大小为0" });
+    }
+
+    // 如果是课程封面上传，不需要检查章节
+    if (type === "course_cover") {
+      // 上传到七牛云
+      console.log("开始上传课程封面到七牛云...");
+      const qiniuResult = await uploadToQiniu(file.tempFilePath, fileName);
+      console.log("七牛云上传结果:", qiniuResult);
+
+      // 删除临时文件
+      try {
+        await fsPromises.unlink(file.tempFilePath);
+        console.log("临时文件已删除:", file.tempFilePath);
+      } catch (unlinkError) {
+        console.error("删除临时文件失败:", unlinkError);
+      }
+
+      return res.json({
+        success: true,
+        data: {
+          url: qiniuResult.url,
+          fileName: fileName,
+          fileType: qiniuResult.fileType,
+        }
+      });
+    }
+
+    // 检查章节是否存在
+    const checkChapterSql = "SELECT id FROM chapters WHERE id = ?";
+    const chapterResult = await query<RowDataPacket[]>(checkChapterSql, [chapterId]);
+    const chapter = chapterResult[0];
+    
+    if (!chapter) {
+      console.error("章节不存在:", chapterId);
+      return res.status(400).json({ 
+        code: 400,
+        success: false,
+        message: "章节不存在",
+        data: null
+      });
+    }
+
+    // 检查资料名是否已存在
+    const checkMaterialSql = "SELECT id FROM materials WHERE chapter_id = ? AND title = ?";
+    const existingMaterial = await query<RowDataPacket[]>(checkMaterialSql, [chapterId, fileName]);
+    
+    if (existingMaterial.length > 0) {
+      return res.status(400).json({ 
+        code: 400,
+        success: false,
+        message: "该章节下已存在同名资料",
+        data: null
+      });
     }
 
     // 上传到七牛云
@@ -249,8 +305,8 @@ export const uploadMaterial = async (req: Request, res: Response) => {
       chapterId
     ];
 
-    const result = await query(sql, values);
-    console.log("数据库保存结果:", result);
+    const insertResult = await query(sql, values);
+    console.log("数据库保存结果:", insertResult);
 
     // 删除临时文件
     try {
@@ -263,7 +319,7 @@ export const uploadMaterial = async (req: Request, res: Response) => {
     res.json({
       success: true,
       data: {
-        id: (result as any).insertId,
+        id: (insertResult as any).insertId,
         fileName: fileName,
         fileType: qiniuResult.fileType,
         url: qiniuResult.url,

@@ -113,5 +113,32 @@ export const courseService = {
       console.error('Search failed:', error);
       throw error;
     }
+  },
+
+  // 评分课程
+  async rateCourse(
+    courseId: number,
+    data: { rating: number; comment?: string }
+  ): Promise<ApiResponse<null>> {
+    try {
+      const token = Taro.getStorageSync('token');
+      const response = await request({
+        url: `${BASE_URL}/course/${courseId}/rate`,
+        method: 'POST',
+        data,
+        header: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.statusCode === 200) {
+        return response.data;
+      }
+      throw new Error(response.data.message || '评分失败');
+    } catch (error) {
+      console.error('Rate course failed:', error);
+      throw error;
+    }
   }
 };

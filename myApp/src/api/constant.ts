@@ -9,7 +9,7 @@ export const API_ROUTES = {
   UPDATE_PROFILE: '/client/auth/update-profile',
   COURSE_LIST: '/course/list',
   COURSE_DETAIL: '/course/',
-  COURSE_RATINGS: '/course/:courseId/ratings',
+  COURSE_RATINGS: '/course/:courseId/rate',
   CREATE_COURSE: '/course',
   UPDATE_COURSE: '/course/',
   DELETE_COURSE: '/course/',

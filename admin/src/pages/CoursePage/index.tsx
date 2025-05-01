@@ -30,6 +30,8 @@ import {
   reviewMaterial,
   deleteMaterial,
   getChapterDetail,
+  deleteChapter,
+  createChapter,
 } from "@api/course";
 import { uploadFile } from "@api/upload";
 import type {
@@ -38,18 +40,6 @@ import type {
   Material,
   Chapter,
 } from "@/types/course";
-
-export const waitTimePromise = async (time: number = 100) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(true);
-    }, time);
-  });
-};
-
-export const waitTime = async (time: number = 100) => {
-  await waitTimePromise(time);
-};
 
 const CourseManagementPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
@@ -71,7 +61,7 @@ const CourseManagementPage: React.FC = () => {
     try {
       const res = await getCourseList({
         page: 1,
-        pageSize: 1000, // 获取所有数据用于前端搜索
+        pageSize: 10,
       });
       if (res && res.success) {
         setCourseList(res.data);
@@ -129,22 +119,46 @@ const CourseManagementPage: React.FC = () => {
   const handleAddChapter = async (values: { title: string }) => {
     if (!currentCourse) return;
 
-    const newChapter: Chapter = {
-      id: Date.now().toString(),
-      title: values.title,
-      order: currentCourse.chapters.length + 1,
-      materials: [],
-    };
+    try {
+      // 调用API创建章节
+      const res = await createChapter({
+        courseId: currentCourse.id,
+        title: values.title,
+      });
 
-    const updatedCourse = {
-      ...currentCourse,
-      chapters: [...currentCourse.chapters, newChapter],
-    };
-    setCurrentCourse(updatedCourse);
+      if (res.success && res.data) {
+        // 更新本地状态
+        const newChapter: Chapter = {
+          id: res.data.id,
+          title: res.data.title,
+          order: currentCourse.chapters.length + 1,
+          materials: [],
+        };
 
-    message.success("添加章节成功");
-    setIsEditChapterModalVisible(false);
-    chapterForm.resetFields();
+        const updatedCourse = {
+          ...currentCourse,
+          chapters: [...currentCourse.chapters, newChapter],
+        };
+        setCurrentCourse(updatedCourse);
+
+        // 更新 courseList 状态
+        setCourseList((prevList) =>
+          prevList.map((course) =>
+            course.id === currentCourse.id
+              ? { ...course, chapters: [...course.chapters, newChapter] }
+              : course
+          )
+        );
+
+        message.success("添加章节成功");
+        setIsEditChapterModalVisible(false);
+        chapterForm.resetFields();
+      } else {
+        message.error(res.message || "添加章节失败");
+      }
+    } catch (error) {
+      message.error("添加章节失败，请重试");
+    }
   };
 
   const handleEditChapter = async (values: { title: string }) => {
@@ -211,15 +225,36 @@ const CourseManagementPage: React.FC = () => {
     Modal.confirm({
       title: "确定要删除该章节吗？",
       content: "删除后将无法恢复，该章节下的所有资料也将被删除！",
-      onOk: () => {
-        const updatedChapters = currentCourse.chapters.filter(
-          (chapter: Chapter) => chapter.id !== chapterId
-        );
-        setCurrentCourse({
-          ...currentCourse,
-          chapters: updatedChapters,
-        });
-        message.success("删除章节成功");
+      onOk: async () => {
+        try {
+          const res = await deleteChapter(chapterId);
+          console.log("删除章节结果:", res);
+          if (res.success) {
+            // 更新本地状态
+            const updatedChapters = currentCourse.chapters.filter(
+              (chapter: Chapter) => chapter.id !== chapterId
+            );
+            setCurrentCourse({
+              ...currentCourse,
+              chapters: updatedChapters,
+            });
+
+            // 更新 courseList 状态
+            setCourseList((prevList) =>
+              prevList.map((course) =>
+                course.id === currentCourse.id
+                  ? { ...course, chapters: updatedChapters }
+                  : course
+              )
+            );
+
+            message.success(res.message || "删除章节成功");
+          } else {
+            message.error(res.message || "删除章节失败");
+          }
+        } catch (error) {
+          message.error("删除章节失败，请重试");
+        }
       },
     });
   };
@@ -386,19 +421,38 @@ const CourseManagementPage: React.FC = () => {
   };
 
   const handleAddCourse = async (values: any) => {
-    const res = await createCourse({
-      title: values.title,
-      description: values.description,
-      status: "draft",
-      // cover: 可选，按需传递
-    });
-    if (res.success) {
-      message.success("新增课程成功");
-      setIsAddCourseModalVisible(false);
-      courseForm.resetFields();
-      actionRef.current?.reload();
-    } else {
-      message.error(res.message || "新增课程失败");
+    try {
+      // 上传封面图片
+      let coverUrl = "";
+      if (values.cover) {
+        const formData = new FormData();
+        formData.append("file", values.cover.file);
+        formData.append("type", "course_cover"); // 添加类型标识，表示这是课程封面
+        const uploadRes = await uploadFile(formData);
+        if (!uploadRes.success) {
+          message.error("封面图片上传失败");
+          return;
+        }
+        coverUrl = uploadRes.data.url;
+      }
+
+      const res = await createCourse({
+        title: values.title,
+        description: values.description,
+        status: "draft",
+        cover: coverUrl,
+      });
+      if (res.success) {
+        message.success("新增课程成功");
+        setIsAddCourseModalVisible(false);
+        courseForm.resetFields();
+        fetchCourseList();
+      } else {
+        message.error(res.message || "新增课程失败");
+      }
+    } catch (error) {
+      console.error("创建课程失败:", error);
+      message.error("创建课程失败");
     }
   };
 
@@ -828,6 +882,34 @@ const CourseManagementPage: React.FC = () => {
             rules={[{ required: true, message: "请输入课程描述" }]}
           >
             <Input.TextArea placeholder="请输入课程描述" />
+          </Form.Item>
+          <Form.Item
+            name="cover"
+            label="课程封面"
+            rules={[{ required: true, message: "请上传课程封面" }]}
+          >
+            <Upload
+              listType="picture-card"
+              maxCount={1}
+              beforeUpload={(file) => {
+                const isImage = file.type.startsWith("image/");
+                if (!isImage) {
+                  message.error("只能上传图片文件！");
+                  return Upload.LIST_IGNORE;
+                }
+                const isLt2M = file.size / 1024 / 1024 < 2;
+                if (!isLt2M) {
+                  message.error("图片大小不能超过 2MB！");
+                  return Upload.LIST_IGNORE;
+                }
+                return false;
+              }}
+            >
+              <div>
+                <PlusOutlined />
+                <div style={{ marginTop: 8 }}>上传封面</div>
+              </div>
+            </Upload>
           </Form.Item>
         </Form>
       </Modal>

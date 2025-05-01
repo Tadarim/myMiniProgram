@@ -23,10 +23,10 @@ const CourseDetail = () => {
     description: '',
     chapters: [],
     rating: 0,
-    isCollected: false
+    is_collected: false
   });
 
-  const [isCollected, setIsCollected] = useState(courseInfo.isCollected);
+  const [isCollected, setIsCollected] = useState(courseInfo.is_collected);
   const [userRating, setUserRating] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -68,8 +68,38 @@ const CourseDetail = () => {
     });
   };
 
-  const handleRatingChange = (value: number) => {
-    setUserRating(value);
+  const handleRatingChange = async (value: number) => {
+    try {
+      const courseId = router.params.id;
+      if (!courseId) return;
+
+      const response = await courseService.rateCourse(Number(courseId), {
+        rating: value,
+        comment: '' // 暂时不添加评论
+      });
+
+      if (response.code === 200) {
+        setUserRating(value);
+        showToast({
+          title: '评分成功',
+          icon: 'success',
+          duration: 1500
+        });
+      } else {
+        showToast({
+          title: response.message || '评分失败',
+          icon: 'none',
+          duration: 1500
+        });
+      }
+    } catch (error) {
+      console.error('评分失败:', error);
+      showToast({
+        title: '评分失败',
+        icon: 'none',
+        duration: 1500
+      });
+    }
   };
 
   const handleChapterClick = (chapter: Chapter) => {
@@ -118,7 +148,6 @@ const CourseDetail = () => {
               count={5}
               value={userRating ?? courseInfo.rating}
               allowHalf
-              size={18}
               onChange={handleRatingChange}
             />
           </View>

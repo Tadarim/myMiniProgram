@@ -20,7 +20,7 @@ export interface CourseUpdate {
   description?: string;
   cover?: string;
   rating?: number;
-  status?: 'draft' | 'published' | 'archived';
+  status?: "draft" | "published" | "archived";
   publishTime?: string;
 }
 
@@ -46,7 +46,7 @@ export async function getCourseList(params: {
   keyword?: string;
 }): Promise<CourseListResponse> {
   return request({
-    url: "/api/course/list",
+    url: "/course/list",
     method: "get",
     params,
   });
@@ -54,7 +54,7 @@ export async function getCourseList(params: {
 
 export async function getCourseDetail(id: string): Promise<CourseResponse> {
   return request({
-    url: `/api/course/${id}`,
+    url: `/course/${id}`,
     method: "get",
   });
 }
@@ -66,7 +66,7 @@ export async function createCourse(data: {
   status?: "draft" | "published" | "archived";
 }): Promise<CourseResponse> {
   return request({
-    url: "/api/course",
+    url: "/course",
     method: "post",
     data,
   });
@@ -82,7 +82,7 @@ export async function updateCourse(
   }
 ): Promise<CourseResponse> {
   return request({
-    url: `/api/course/${id}`,
+    url: `/course/${id}`,
     method: "put",
     data,
   });
@@ -90,7 +90,7 @@ export async function updateCourse(
 
 export async function deleteCourse(id: string): Promise<CourseResponse> {
   return request({
-    url: `/api/course/${id}`,
+    url: `/course/${id}`,
     method: "delete",
   });
 }
@@ -100,30 +100,45 @@ export async function updateChapter(
   data: ChapterUpdate
 ): Promise<ApiResponse<null>> {
   return request({
-    url: `/api/course/chapters/${id}`,
+    url: `/course/chapters/${id}`,
     method: "put",
     data,
   });
 }
 
-export async function createChapter(data: ChapterCreate): Promise<ChapterResponse> {
+export async function createChapter(
+  data: ChapterCreate
+): Promise<ChapterResponse> {
   return request({
-    url: "/api/course/chapters",
+    url: "/course/chapters",
     method: "post",
     data,
   });
 }
 
-export async function deleteChapter(id: string): Promise<ApiResponse<null>> {
-  return request({
-    url: `/api/course/chapters/${id}`,
-    method: "delete",
-  });
-}
+export const deleteChapter = async (
+  chapterId: string
+): Promise<ApiResponse<null>> => {
+  try {
+    const response = await request({
+      url: `/course/chapters/${chapterId}`,
+      method: "delete",
+    });
+    console.log("删除章节响应:", response);
+    return response;
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "删除章节失败",
+      data: null,
+      code: 500,
+    };
+  }
+};
 
 export async function getChapterDetail(id: string): Promise<ChapterResponse> {
   return request({
-    url: `/api/course/chapters/${id}`,
+    url: `/course/chapters/${id}`,
     method: "get",
   });
 }
@@ -133,7 +148,7 @@ export async function reviewMaterial(
   approved: boolean
 ): Promise<ApiResponse<null>> {
   return request({
-    url: `/api/course/materials/${materialId}/review`,
+    url: `/course/materials/${materialId}/review`,
     method: "post",
     data: {
       approved,
@@ -141,9 +156,11 @@ export async function reviewMaterial(
   });
 }
 
-export async function deleteMaterial(materialId: string): Promise<ApiResponse<null>> {
+export async function deleteMaterial(
+  materialId: string
+): Promise<ApiResponse<null>> {
   return request({
-    url: `/api/course/materials/${materialId}`,
+    url: `/course/materials/${materialId}`,
     method: "delete",
   });
 }

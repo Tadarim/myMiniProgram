@@ -18,7 +18,7 @@ export interface LoginResult {
 
 export const adminLogin = (data: LoginParams) => {
   return request<LoginResult>({
-    url: "/api/admin/login",
+    url: "/admin/login",
     method: "post",
     data,
   });

@@ -1,5 +1,4 @@
 import express from "express";
-import { setUserFromToken } from "../middleware/verifyToken";
 import {
   getCourseList,
   getCourseDetail,
@@ -7,7 +6,6 @@ import {
   updateCourse,
   deleteCourse,
   rateCourse,
-  getCourseRatings,
   createChapter,
   updateChapter,
   deleteChapter,
@@ -15,29 +13,26 @@ import {
   reviewMaterial,
   deleteMaterial,
 } from "../controllers/course";
+import { auth } from "../middleware/auth";
 
 const router = express.Router();
 
-// 公开接口
+// 课程相关路由
 router.get("/list", getCourseList);
 router.get("/:id", getCourseDetail);
-router.get("/chapters/:id", getChapterDetail);
+router.post("/", auth, createCourse);
+router.put("/:id", auth, updateCourse);
+router.delete("/:id", auth, deleteCourse);
+router.post("/:courseId/rate", auth, rateCourse);
 
-// 需要认证的接口
-router.use(setUserFromToken);
-router.post("/", createCourse);
-router.put("/:id", updateCourse);
-router.delete("/:id", deleteCourse);
-router.post("/:courseId/rate", rateCourse);
-router.get("/:courseId/ratings", getCourseRatings);
+// 章节相关路由
+router.post("/chapter", auth, createChapter);
+router.put("/chapter/:id", auth, updateChapter);
+router.delete("/chapter/:id", auth, deleteChapter);
+router.get("/chapter/:id", getChapterDetail);
 
-// 章节相关
-router.post("/chapters", createChapter);
-router.put("/chapters/:id", updateChapter);
-router.delete("/chapters/:id", deleteChapter);
-
-// 资料相关
-router.post("/materials/:id/review", reviewMaterial);
-router.delete("/materials/:id", deleteMaterial);
+// 资料相关路由
+router.put("/material/:id/review", auth, reviewMaterial);
+router.delete("/material/:id", auth, deleteMaterial);
 
 export default router;

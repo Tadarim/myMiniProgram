@@ -15,7 +15,7 @@ export interface UploadResponse {
 
 export async function uploadFile(formData: FormData): Promise<UploadResponse> {
   return request({
-    url: "/api/upload",
+    url: "/upload",
     method: "post",
     data: formData,
     headers: {

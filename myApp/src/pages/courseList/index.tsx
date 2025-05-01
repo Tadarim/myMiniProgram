@@ -1,5 +1,5 @@
 import { View, Input, Image } from '@tarojs/components';
-import Taro, { switchTab } from '@tarojs/taro';
+import Taro from '@tarojs/taro';
 
 import { Search } from '@nutui/icons-react-taro';
 import { InfiniteLoading } from '@nutui/nutui-react-taro';
@@ -9,6 +9,7 @@ import { courseService } from '@/api/course';
 import NavigationBar from '@/components/navigationBar';
 import { genUrl } from '@/utils';
 import './index.less';
+import { MyEmpty } from '@/components/empty';
 
 const CourseListPage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -67,6 +68,30 @@ const CourseListPage: React.FC = () => {
       await fetchCourses(true);
     }
   };
+
+  if (!isLoading && courses.length === 0) {
+    return (
+      <View className='courseList-page'>
+        <NavigationBar title='课程列表' />
+
+        <View className='search-bar'>
+          <View className='search-input-wrapper'>
+            <Search className='search-icon' />
+            <Input
+              className='search-input'
+              type='text'
+              placeholder='搜索课程'
+              placeholderStyle='color: #999'
+              value={searchKeyword}
+              onInput={handleSearch}
+            />
+          </View>
+        </View>
+
+        <MyEmpty title='暂无搜索结果' type='search' />
+      </View>
+    );
+  }
 
   return (
     <View className='courseList-page'>
