@@ -17,7 +17,7 @@ declare global {
 
 const verifyTokenMiddleware = () => {
   return jwt({
-    secret: process.env.JWT_SECRET || "your-secret-key",
+    secret: process.env.JWT_SECRET || "xuxinyu.tadarim",
     algorithms: ["HS256"],
     credentialsRequired: true,
     getToken: function fromHeaderOrQuerystring(req: Request) {
@@ -25,8 +25,7 @@ const verifyTokenMiddleware = () => {
         req.headers.authorization &&
         req.headers.authorization.split(" ")[0] === "Bearer"
       ) {
-        const token = req.headers.authorization.split(" ")[1];
-        return token;
+        return req.headers.authorization.split(" ")[1];
       }
       return undefined;
     },

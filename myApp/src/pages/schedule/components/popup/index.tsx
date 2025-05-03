@@ -141,7 +141,7 @@ export const PopupRender = ({ visible, onClose, onConfirm }: PopupProps) => {
               });
               onConfirm({
                 title,
-                desc: description,
+                description: description,
                 time: `${date[0]} ${startTime} - ${date[1]} ${endTime}`,
                 id: Date.now()
               });

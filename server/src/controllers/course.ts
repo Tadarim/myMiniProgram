@@ -339,16 +339,13 @@ export const deleteCourse = async (req: Request, res: Response) => {
   try {
     await connection.beginTransaction();
 
-    // 1. 先删除课程相关的资料
     await query(
       `DELETE FROM materials WHERE chapter_id IN (SELECT id FROM chapters WHERE course_id = ?)`,
       [id]
     );
 
-    // 2. 删除课程相关的章节
     await query(`DELETE FROM chapters WHERE course_id = ?`, [id]);
 
-    // 3. 最后删除课程
     await query(`DELETE FROM courses WHERE id = ?`, [id]);
 
     await connection.commit();

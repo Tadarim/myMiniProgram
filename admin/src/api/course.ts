@@ -124,7 +124,6 @@ export const deleteChapter = async (
       url: `/course/chapters/${chapterId}`,
       method: "delete",
     });
-    console.log("删除章节响应:", response);
     return response;
   } catch (error: any) {
     return {

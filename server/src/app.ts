@@ -4,14 +4,18 @@ import fileUpload from "express-fileupload";
 import path from "path";
 import http from "http";
 import { WebSocketServer } from "ws";
-import { verifyTokenMiddleware } from "./middleware/verifyToken";
+import {
+  verifyTokenMiddleware,
+  setUserFromToken,
+} from "./middleware/verifyToken";
 
 import clientServer from "./routes/client";
 import adminServer from "./routes/admin";
 import userServer from "./routes/user";
 import courseServer from "./routes/course";
 import uploadRouter from "./routes/upload";
-
+import scheduleRoutes from "./routes/schedule";
+import exerciseRoutes from "./routes/exercise";
 const app = express();
 
 app.use(cors());
@@ -26,21 +30,18 @@ app.use(
     debug: true,
   })
 );
-app.use("/uploads", express.static(path.join(__dirname, "../public/uploads")));
 
-// 认证中间件
 app.use(verifyTokenMiddleware());
+app.use(setUserFromToken);
 
-// 路由配置
-app.use("/api/client", clientServer);
 app.use("/api/admin", adminServer);
-app.use("/api/user", userServer);
+app.use("/api/client", clientServer);
 app.use("/api/course", courseServer);
-
-// 注册路由
+app.use("/api/schedule", scheduleRoutes);
 app.use("/api/upload", uploadRouter);
+app.use("/api/user", userServer);
+app.use("/api/exercise", exerciseRoutes);
 
-// 启动服务器
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`服务器运行在端口 ${PORT}`);

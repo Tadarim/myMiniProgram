@@ -6,10 +6,11 @@ import { InfiniteLoading } from '@nutui/nutui-react-taro';
 import { useState, useEffect } from 'react';
 
 import { courseService } from '@/api/course';
+import { MyEmpty } from '@/components/empty';
 import NavigationBar from '@/components/navigationBar';
 import { genUrl } from '@/utils';
+
 import './index.less';
-import { MyEmpty } from '@/components/empty';
 
 const CourseListPage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -112,9 +113,8 @@ const CourseListPage: React.FC = () => {
       </View>
 
       <InfiniteLoading
-        isLoading={isLoading}
         hasMore={courses.length < total}
-        loadMore={loadMore}
+        onLoadMore={loadMore}
       >
         <View className='course-list'>
           {courses.map((course, index) => (

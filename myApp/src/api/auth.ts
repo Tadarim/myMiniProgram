@@ -118,12 +118,6 @@ export const authService = {
         console.error('No token found in storage');
         throw new Error('未登录');
       }
-
-      console.log('Request headers:', {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      });
-
       const response = await request({
         url: `${BASE_URL}${API_ROUTES.UPDATE_PROFILE}`,
         method: 'POST',

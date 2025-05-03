@@ -1,50 +1,57 @@
 import { View, Text } from '@tarojs/components';
 
 import { Dialog } from '@nutui/nutui-react-taro';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 import { PopupRender } from './components/popup';
 import { ScheduleItem } from './components/scheduleItem';
 
+import {
+  getScheduleList,
+  createSchedule,
+  deleteSchedule
+} from '@/api/schedule';
+import { ScheduleItem as ScheduleItemType } from '@/api/types';
 import { MyEmpty } from '@/components/empty';
 import NavigationBar from '@/components/navigationBar';
 import Title from '@/components/title';
 
 import './index.less';
 
-interface ScheduleItem {
-  id: number | string;
-  title: string;
-  time: string;
-  desc: string;
-}
-
 const Schedule: React.FC = () => {
-  const mockScheduleList: ScheduleItem[] = [
-    {
-      id: '1',
-      title: '完成web大作业',
-      time: '4.19 | 14:00-16:00',
-      desc: '完成web大作业'
-    },
-    {
-      id: '2',
-      title: '准备期末考试',
-      time: '4.19 | 19:00-21:00',
-      desc: '准备期末考试'
-    }
-  ];
-
-  const [scheduleList, setScheduleList] = useState(mockScheduleList);
+  const [scheduleList, setScheduleList] = useState<ScheduleItemType[]>([]);
   const [showPopup, setShowPopup] = useState(false);
+
+  // 获取日程列表
+  const fetchScheduleList = async () => {
+    try {
+      const res = await getScheduleList();
+      if (res.data.success && res.data.data) {
+        setScheduleList(res.data.data);
+      }
+    } catch (error) {
+      console.error('获取日程列表失败:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchScheduleList();
+  }, []);
 
   const deleteHandler = (id: string | number) => {
     Dialog.open('dialog', {
       title: '确定要删除该计划么？',
-      onConfirm: () => {
-        setScheduleList((prevList) =>
-          prevList.filter((item) => item.id !== id)
-        );
+      onConfirm: async () => {
+        try {
+          const res = await deleteSchedule(id);
+          if (res.data.success) {
+            setScheduleList((prevList) =>
+              prevList.filter((item) => item.id !== id)
+            );
+          }
+        } catch (error) {
+          console.error('删除日程失败:', error);
+        }
         setTimeout(() => {
           Dialog.close('dialog');
         }, 200);
@@ -55,8 +62,19 @@ const Schedule: React.FC = () => {
     });
   };
 
-  const addHandler = (item: ScheduleItem) => {
-    setScheduleList((prevList) => [...prevList, item]);
+  const addHandler = async (item: ScheduleItemType) => {
+    try {
+      const res = await createSchedule({
+        title: item.title,
+        time: item.time,
+        description: item.description
+      });
+      if (res.data.success && res.data.data) {
+        setScheduleList((prevList) => [...prevList, res.data.data]);
+      }
+    } catch (error) {
+      console.error('创建日程失败:', error);
+    }
   };
 
   return (
@@ -81,7 +99,15 @@ const Schedule: React.FC = () => {
           <Dialog id='dialog' />
         </View>
       ) : (
-        <MyEmpty title='暂时还没有计划~' />
+        <View>
+          <MyEmpty title='暂时还没有计划~' />
+
+          <View className='add-button' onClick={() => setShowPopup(true)}>
+            <Text>添加计划</Text>
+          </View>
+
+          <Dialog id='dialog' />
+        </View>
       )}
 
       <PopupRender

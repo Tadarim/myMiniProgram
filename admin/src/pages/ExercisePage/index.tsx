@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ProTable, ProColumns, ActionType } from "@ant-design/pro-components";
 import {
   Button,
@@ -20,223 +20,183 @@ import {
   DeleteOutlined,
   EyeOutlined,
 } from "@ant-design/icons";
-
-export const waitTimePromise = async (time = 100) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(true);
-    }, time);
-  });
-};
-
-export const waitTime = async (time = 100) => {
-  await waitTimePromise(time);
-};
-
-type QuestionType = "single" | "multiple";
-
-interface Question {
-  id: number;
-  content: string;
-  type: QuestionType;
-  options: string[];
-  answer: string | string[];
-}
-
-interface ExerciseSet {
-  id: number;
-  title: string;
-  description: string;
-  courseId: number;
-  courseName: string;
-  questionCount: number;
-  questions: Question[];
-  createdAt: string;
-}
-
-const generateId = (type: 'exerciseSet' | 'question'): number => {
-  if (type === 'exerciseSet') {
-    const maxId = Math.max(...mockExerciseSets.map(set => set.id), 0);
-    return maxId + 1;
-  } else {
-    const allQuestions = mockExerciseSets.flatMap(set => set.questions);
-    const maxId = Math.max(...allQuestions.map(q => q.id), 0);
-    return maxId + 1;
-  }
-};
-
-let mockExerciseSets: ExerciseSet[] = [
-  {
-    id: 1,
-    title: "React基础知识测试",
-    description: "React基础概念和核心特性的测试题目",
-    courseId: 1,
-    courseName: "React基础教程",
-    questionCount: 2,
-    questions: [
-      {
-        id: 1,
-        content: "React 是什么？",
-        type: "single",
-        options: ["JavaScript库", "编程语言", "操作系统", "数据库"],
-        answer: "JavaScript库",
-      },
-      {
-        id: 2,
-        content: "React的核心特性包括哪些？",
-        type: "multiple",
-        options: ["组件化", "虚拟DOM", "单向数据流", "JSX语法"],
-        answer: ["组件化", "虚拟DOM", "单向数据流", "JSX语法"],
-      },
-    ],
-    createdAt: "2024-03-20 10:00:00",
-  },
-  {
-    id: 2,
-    title: "Vue.js入门测试",
-    description: "Vue.js基础知识测试题目",
-    courseId: 2,
-    courseName: "Vue.js入门教程",
-    questionCount: 2,
-    questions: [
-      {
-        id: 3,
-        content: "Vue.js的核心是什么？",
-        type: "single",
-        options: ["数据驱动", "组件化", "路由系统", "状态管理"],
-        answer: "数据驱动",
-      },
-      {
-        id: 4,
-        content: "Vue.js 2.x的特性有哪些？",
-        type: "multiple",
-        options: ["响应式系统", "虚拟DOM", "组件化", "模板语法"],
-        answer: ["响应式系统", "虚拟DOM", "组件化", "模板语法"],
-      },
-    ],
-    createdAt: "2024-03-21 11:00:00",
-  },
-];
-
-const mockCourses = [
-  { id: 1, name: "React基础教程" },
-  { id: 2, name: "Vue.js入门教程" },
-  { id: 3, name: "Angular进阶课程" },
-];
-
-const fetchExerciseSets = async (params: any) => {
-  console.log("Fetching exercise sets with params:", params);
-  await waitTime(500);
-
-  let filteredData = [...mockExerciseSets];
-  if (params.title) {
-    filteredData = filteredData.filter((set) =>
-      set.title.includes(params.title)
-    );
-  }
-  if (params.courseName) {
-    filteredData = filteredData.filter((set) =>
-      set.courseName.includes(params.courseName)
-    );
-  }
-
-  return { data: filteredData, success: true, total: filteredData.length };
-};
-
-const handleDeleteExerciseSet = async (id: number) => {
-  console.log(`Deleting exercise set with id: ${id}`);
-  await waitTime(500);
-  
-  mockExerciseSets = mockExerciseSets.filter(set => set.id !== id);
-  message.success("删除成功");
-  return true;
-};
-
-const handleSaveExerciseSet = async (values: any, mode: 'add' | 'edit', currentId?: number) => {
-  console.log("Saving exercise set:", values);
-  await waitTime(500);
-
-  const { title, description, courseId } = values;
-  const course = mockCourses.find(c => c.id === courseId);
-
-  if (mode === 'add') {
-    const newExerciseSet: ExerciseSet = {
-      id: generateId('exerciseSet'),
-      title,
-      description,
-      courseId,
-      courseName: course?.name || '',
-      questionCount: 0,
-      questions: [],
-      createdAt: new Date().toISOString(),
-    };
-    mockExerciseSets = [...mockExerciseSets, newExerciseSet];
-  } else if (mode === 'edit' && currentId) {
-    mockExerciseSets = mockExerciseSets.map(set => {
-      if (set.id === currentId) {
-        return {
-          ...set,
-          title,
-          description,
-          courseId,
-          courseName: course?.name || '',
-        };
-      }
-      return set;
-    });
-  }
-
-  message.success("保存成功");
-  return true;
-};
-
-const handleDeleteQuestion = async (exerciseSetId: number, questionId: number) => {
-  console.log(`Deleting question ${questionId} from exercise set ${exerciseSetId}`);
-  await waitTime(500);
-
-  mockExerciseSets = mockExerciseSets.map(set => {
-    if (set.id === exerciseSetId) {
-      const updatedQuestions = set.questions.filter(q => q.id !== questionId);
-      return {
-        ...set,
-        questions: updatedQuestions,
-        questionCount: updatedQuestions.length,
-      };
-    }
-    return set;
-  });
-
-  message.success("删除题目成功");
-  return true;
-};
+import {
+  getExerciseSets,
+  createExerciseSet,
+  updateExerciseSet,
+  deleteExerciseSet,
+  getExerciseSetDetail,
+  addQuestion,
+  deleteQuestion,
+  ExerciseSet,
+  ExerciseSetDetail,
+} from "@/api/exercise";
 
 const ExerciseSetManagementPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
   const [form] = Form.useForm();
   const [questionForm] = Form.useForm();
-  
+  const [loading, setLoading] = useState<boolean>(false);
+  const [allExerciseSets, setAllExerciseSets] = useState<ExerciseSet[]>([]);
+
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [isQuestionModalVisible, setIsQuestionModalVisible] = useState(false);
-  const [currentExerciseSet, setCurrentExerciseSet] = useState<ExerciseSet | null>(null);
+  const [currentExerciseSet, setCurrentExerciseSet] =
+    useState<ExerciseSetDetail | null>(null);
   const [modalTitle, setModalTitle] = useState("新增习题集");
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
 
-  const handleViewQuestions = (record: ExerciseSet) => {
-    setCurrentExerciseSet(record);
-    setIsViewModalVisible(true);
+  useEffect(() => {
+    fetchExerciseSets();
+  }, []);
+
+  const fetchExerciseSets = async () => {
+    setLoading(true);
+    try {
+      const response = await getExerciseSets({});
+      if (response.success && response.data) {
+        setAllExerciseSets(response.data);
+      }
+    } catch (error) {
+      message.error("获取习题集列表失败");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleEditExerciseSet = (record: ExerciseSet) => {
-    setCurrentExerciseSet(record);
-    setModalTitle("编辑习题集");
-    setModalMode("edit");
-    form.setFieldsValue({
-      title: record.title,
-      description: record.description,
-      courseId: record.courseId,
-    });
-    setIsModalVisible(true);
+  const handleSearch = async (params: any) => {
+    try {
+      let filteredData = [...allExerciseSets];
+
+      if (params.title) {
+        filteredData = filteredData.filter((item) =>
+          item.title.toLowerCase().includes(params.title.toLowerCase())
+        );
+      }
+
+      return {
+        data: filteredData,
+        success: true,
+        total: filteredData.length,
+      };
+    } catch (error) {
+      return {
+        data: [],
+        success: false,
+        total: 0,
+      };
+    }
+  };
+
+  const handleDeleteExerciseSet = async (id: number) => {
+    try {
+      const response = await deleteExerciseSet(id);
+      if (response.success) {
+        message.success("删除成功");
+        fetchExerciseSets();
+        return true;
+      } else {
+        message.error(response.message || "删除失败");
+        return false;
+      }
+    } catch (error) {
+      message.error("删除失败");
+      return false;
+    }
+  };
+
+  const handleSaveExerciseSet = async (
+    values: any,
+    mode: "add" | "edit",
+    currentId?: number
+  ) => {
+    try {
+      let response;
+      if (mode === "add") {
+        response = await createExerciseSet({
+          title: values.title,
+          description: values.description,
+        });
+      } else if (mode === "edit" && currentId) {
+        response = await updateExerciseSet(currentId, {
+          title: values.title,
+          description: values.description,
+        });
+      }
+
+      if (response?.success) {
+        message.success("保存成功");
+        fetchExerciseSets();
+        if (actionRef.current) {
+          actionRef.current.reload();
+        }
+        return true;
+      } else {
+        message.error(response?.message || "保存失败");
+        return false;
+      }
+    } catch (error) {
+      message.error("保存失败");
+      return false;
+    }
+  };
+
+  const handleDeleteQuestion = async (
+    exerciseSetId: number,
+    questionId: number
+  ) => {
+    try {
+      const response = await deleteQuestion(exerciseSetId, questionId);
+      if (response.success) {
+        message.success("删除题目成功");
+        fetchExerciseSets();
+        return true;
+      } else {
+        message.error(response.message || "删除题目失败");
+        return false;
+      }
+    } catch (error) {
+      message.error("删除题目失败");
+      return false;
+    }
+  };
+
+  const handleViewQuestions = async (record: ExerciseSet) => {
+    try {
+      const response = await getExerciseSetDetail(record.id);
+      if (response.success && response.data) {
+        setCurrentExerciseSet(response.data);
+        setIsViewModalVisible(true);
+      } else {
+        message.error(response.message || "获取习题集详情失败");
+      }
+    } catch (error) {
+      message.error("获取习题集详情失败");
+    }
+  };
+
+  const handleEditExerciseSet = async (record: ExerciseSet) => {
+    setLoading(true);
+    try {
+      const response = await getExerciseSetDetail(record.id);
+      if (response.success && response.data) {
+        setCurrentExerciseSet(response.data);
+        setModalTitle("编辑习题集");
+        setModalMode("edit");
+        form.setFieldsValue({
+          title: response.data.title,
+          description: response.data.description,
+        });
+        setIsModalVisible(true);
+      } else {
+        message.error(response.message || "获取习题集详情失败");
+      }
+    } catch (error) {
+      message.error("获取习题集详情失败");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleAddExerciseSet = () => {
@@ -250,10 +210,13 @@ const ExerciseSetManagementPage: React.FC = () => {
   const handleModalOk = async () => {
     try {
       const values = await form.validateFields();
-      const success = await handleSaveExerciseSet(values, modalMode, currentExerciseSet?.id);
+      const success = await handleSaveExerciseSet(
+        values,
+        modalMode,
+        currentExerciseSet?.id
+      );
       if (success) {
         setIsModalVisible(false);
-        actionRef.current?.reload();
       }
     } catch (error) {
       console.error("表单验证失败:", error);
@@ -278,47 +241,44 @@ const ExerciseSetManagementPage: React.FC = () => {
         content: values.content,
         type: values.type,
         options: values.options,
-        answer: values.type === 'single' ? values.singleAnswer : values.multipleAnswer,
+        answer:
+          values.type === "single"
+            ? [values.singleAnswer]
+            : values.multipleAnswer,
       };
 
-      const newQuestionWithId = {
-        id: generateId('question'),
-        ...newQuestion,
-      };
-
-      mockExerciseSets = mockExerciseSets.map(set => {
-        if (set.id === currentExerciseSet.id) {
-          return {
-            ...set,
-            questions: [...set.questions, newQuestionWithId],
-            questionCount: set.questions.length + 1,
-          };
+      const response = await addQuestion(currentExerciseSet.id, newQuestion);
+      if (response.success) {
+        const updatedSet = await getExerciseSetDetail(currentExerciseSet.id);
+        if (updatedSet.success && updatedSet.data) {
+          setCurrentExerciseSet(updatedSet.data);
         }
-        return set;
-      });
-
-      const updatedSet = mockExerciseSets.find(set => set.id === currentExerciseSet.id);
-      setCurrentExerciseSet(updatedSet || null);
-      
-      setIsQuestionModalVisible(false);
-      message.success('添加题目成功');
-      actionRef.current?.reload();
+        setIsQuestionModalVisible(false);
+        message.success("添加题目成功");
+        fetchExerciseSets();
+      } else {
+        message.error(response.message || "添加题目失败");
+      }
     } catch (error) {
-      console.error('题目表单验证失败:', error);
+      message.error("添加题目失败");
     }
   };
 
-  const handleQuestionDelete = async (exerciseSetId: number, questionId: number) => {
+  const handleQuestionDelete = async (
+    exerciseSetId: number,
+    questionId: number
+  ) => {
     const success = await handleDeleteQuestion(exerciseSetId, questionId);
     if (success) {
-      const updatedSet = mockExerciseSets.find(set => set.id === exerciseSetId);
-      setCurrentExerciseSet(updatedSet || null);
-      actionRef.current?.reload();
+      const updatedSet = await getExerciseSetDetail(exerciseSetId);
+      if (updatedSet.success && updatedSet.data) {
+        setCurrentExerciseSet(updatedSet.data);
+      }
     }
   };
 
   const renderQuestionsList = () => {
-    if (!currentExerciseSet) return null;
+    if (!currentExerciseSet?.questions) return null;
 
     return (
       <div>
@@ -340,13 +300,13 @@ const ExerciseSetManagementPage: React.FC = () => {
               >
                 {question.type === "single" ? "单选题" : "多选题"}
               </Tag>
-              <span style={{ marginLeft: 8, color: '#999', fontSize: '12px' }}>
+              <span style={{ marginLeft: 8, color: "#999", fontSize: "12px" }}>
                 ID: {question.id}
               </span>
             </div>
 
             {question.type === "single" ? (
-              <Radio.Group value={question.answer as string} disabled>
+              <Radio.Group value={question.answer[0] as string} disabled>
                 {question.options.map((option, optIndex) => (
                   <Radio
                     key={optIndex}
@@ -388,88 +348,38 @@ const ExerciseSetManagementPage: React.FC = () => {
     {
       title: "习题集ID",
       dataIndex: "id",
-      key: "id",
-      width: 80,
       search: false,
+      width: 100,
+      align: "center",
     },
     {
       title: "习题集名称",
       dataIndex: "title",
-      key: "title",
       ellipsis: true,
       width: 200,
-      search: true,
-    },
-    {
-      title: "描述",
-      dataIndex: "description",
-      key: "description",
-      ellipsis: true,
-      search: false,
-      width: 300,
-    },
-    {
-      title: "所属课程",
-      dataIndex: "courseName",
-      key: "courseName",
-      width: 150,
-      search: true,
     },
     {
       title: "题目数量",
-      dataIndex: "questionCount",
-      key: "questionCount",
+      dataIndex: "question_count",
       search: false,
-      width: 80,
-      render: (_, record) => record.questions.length,
-    },
-    {
-      title: "题目类型",
-      key: "questionTypes",
-      search: false,
-      width: 80,
-      render: (_, record) => {
-        const types = new Set(record.questions.map((q) => q.type));
-        return (
-          <Space size={0}>
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-              }}
-            >
-              {Array.from(types).map((type) => (
-                <Tag key={type}>{type === "single" ? "单选" : "多选"}</Tag>
-              ))}
-            </div>
-          </Space>
-        );
-      },
+      width: 100,
+      align: "center",
     },
     {
       title: "创建时间",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      valueType: "dateTime",
+      dataIndex: "created_at",
       search: false,
       width: 180,
+      valueType: "dateTime",
     },
     {
       title: "操作",
       key: "action",
       search: false,
-      width: 140,
+      width: 240,
       align: "center",
       render: (_, record) => (
-        <Space
-          size={0}
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            flexDirection: "column",
-          }}
-        >
+        <Space size="middle">
           <Button
             type="link"
             icon={<EyeOutlined />}
@@ -510,7 +420,8 @@ const ExerciseSetManagementPage: React.FC = () => {
         columns={columns}
         actionRef={actionRef}
         cardBordered
-        request={fetchExerciseSets}
+        loading={loading}
+        request={handleSearch}
         rowKey="id"
         search={{
           labelWidth: "auto",
@@ -562,11 +473,7 @@ const ExerciseSetManagementPage: React.FC = () => {
           </Button>,
         ]}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ courseId: mockCourses[0]?.id }}
-        >
+        <Form form={form} layout="vertical">
           <Form.Item
             name="title"
             label="习题集名称"
@@ -583,20 +490,6 @@ const ExerciseSetManagementPage: React.FC = () => {
             <Input.TextArea rows={4} placeholder="请输入习题集描述" />
           </Form.Item>
 
-          <Form.Item
-            name="courseId"
-            label="所属课程"
-            rules={[{ required: true, message: "请选择所属课程" }]}
-          >
-            <Select placeholder="请选择所属课程">
-              {mockCourses.map((course) => (
-                <Select.Option key={course.id} value={course.id}>
-                  {course.name}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
-
           {modalMode === "edit" && (
             <>
               <Divider>题目管理</Divider>
@@ -610,7 +503,7 @@ const ExerciseSetManagementPage: React.FC = () => {
                 </Button>
               </div>
               <div style={{ maxHeight: 300, overflowY: "auto" }}>
-                {currentExerciseSet?.questions.map((question, index) => (
+                {currentExerciseSet?.questions?.map((question, index) => (
                   <div
                     key={question.id}
                     style={{
@@ -628,7 +521,13 @@ const ExerciseSetManagementPage: React.FC = () => {
                       >
                         {question.type === "single" ? "单选题" : "多选题"}
                       </Tag>
-                      <span style={{ marginLeft: 8, color: '#999', fontSize: '12px' }}>
+                      <span
+                        style={{
+                          marginLeft: 8,
+                          color: "#999",
+                          fontSize: "12px",
+                        }}
+                      >
                         ID: {question.id}
                       </span>
                     </div>
@@ -645,7 +544,10 @@ const ExerciseSetManagementPage: React.FC = () => {
                         size="small"
                         onClick={() => {
                           if (currentExerciseSet) {
-                            handleQuestionDelete(currentExerciseSet.id, question.id);
+                            handleQuestionDelete(
+                              currentExerciseSet.id,
+                              question.id
+                            );
                           }
                         }}
                       >
@@ -671,14 +573,16 @@ const ExerciseSetManagementPage: React.FC = () => {
           form={questionForm}
           layout="vertical"
           initialValues={{
-            type: 'single',
-            options: ['', '', '', ''],
+            type: "single",
+            options: ["", "", "", ""],
+            singleAnswer: "",
+            multipleAnswer: [],
           }}
         >
           <Form.Item
             name="content"
             label="题目内容"
-            rules={[{ required: true, message: '请输入题目内容' }]}
+            rules={[{ required: true, message: "请输入题目内容" }]}
           >
             <Input.TextArea rows={4} placeholder="请输入题目内容" />
           </Form.Item>
@@ -686,7 +590,7 @@ const ExerciseSetManagementPage: React.FC = () => {
           <Form.Item
             name="type"
             label="题目类型"
-            rules={[{ required: true, message: '请选择题目类型' }]}
+            rules={[{ required: true, message: "请选择题目类型" }]}
           >
             <Radio.Group>
               <Radio value="single">单选题</Radio>
@@ -699,14 +603,14 @@ const ExerciseSetManagementPage: React.FC = () => {
               <>
                 {fields.map((field, index) => (
                   <Form.Item
-                    label={index === 0 ? '选项' : ''}
+                    label={index === 0 ? "选项" : ""}
                     required={true}
                     key={field.key}
                   >
-                    <div style={{ display: 'flex', alignItems: 'baseline' }}>
+                    <div style={{ display: "flex", alignItems: "baseline" }}>
                       <Form.Item
                         {...field}
-                        validateTrigger={['onChange', 'onBlur']}
+                        validateTrigger={["onChange", "onBlur"]}
                         rules={[
                           {
                             required: true,
@@ -716,7 +620,10 @@ const ExerciseSetManagementPage: React.FC = () => {
                         ]}
                         noStyle
                       >
-                        <Input placeholder={`选项 ${index + 1}`} style={{ width: '90%' }} />
+                        <Input
+                          placeholder={`选项 ${index + 1}`}
+                          style={{ width: "90%" }}
+                        />
                       </Form.Item>
                       {fields.length > 2 && (
                         <Button
@@ -743,22 +650,22 @@ const ExerciseSetManagementPage: React.FC = () => {
 
           <Form.Item
             noStyle
-            shouldUpdate={(prevValues, currentValues) => 
-              prevValues.type !== currentValues.type || 
+            shouldUpdate={(prevValues, currentValues) =>
+              prevValues.type !== currentValues.type ||
               prevValues.options !== currentValues.options
             }
           >
             {({ getFieldValue }) => {
-              const type = getFieldValue('type');
-              const options = getFieldValue('options')?.filter(Boolean) || [];
-              
-              return type === 'single' ? (
+              const type = getFieldValue("type");
+              const options = getFieldValue("options")?.filter(Boolean) || [];
+
+              return type === "single" ? (
                 <Form.Item
                   name="singleAnswer"
                   label="正确答案"
-                  rules={[{ required: true, message: '请选择正确答案' }]}
+                  rules={[{ required: true, message: "请选择正确答案" }]}
                 >
-                  <Select 
+                  <Select
                     placeholder="请选择正确答案"
                     options={options.map((option: string) => ({
                       label: option,
@@ -770,12 +677,12 @@ const ExerciseSetManagementPage: React.FC = () => {
                 <Form.Item
                   name="multipleAnswer"
                   label="正确答案"
-                  rules={[{ required: true, message: '请选择正确答案' }]}
+                  rules={[{ required: true, message: "请选择正确答案" }]}
                 >
                   <Select
                     mode="multiple"
                     placeholder="请选择正确答案"
-                    style={{ width: '100%' }}
+                    style={{ width: "100%" }}
                     options={options.map((option: string) => ({
                       label: option,
                       value: option,

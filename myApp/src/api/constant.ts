@@ -14,5 +14,8 @@ export const API_ROUTES = {
   UPDATE_COURSE: '/course/',
   DELETE_COURSE: '/course/',
   UPLOAD: '/upload',
-  GET_QINIU_TOKEN: '/upload/qiniu-token'
+  GET_QINIU_TOKEN: '/upload/qiniu-token',
+  SCHEDULE_LIST: '/schedule/list',
+  CREATE_SCHEDULE: '/schedule/create',
+  DELETE_SCHEDULE: '/schedule/delete/'
 };

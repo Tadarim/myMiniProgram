@@ -7,8 +7,8 @@ import { BASE_URL, API_ROUTES } from './constant';
 import { Course } from '@/types/course';
 
 export interface SearchResult {
-  courses: Course[];
-  exercises: any[]; // 习题搜索结果
+  courses?: Course[];
+  exercises?: any[];
   total: number;
 }
 
@@ -39,7 +39,6 @@ export const courseService = {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       };
-      console.log('Request headers:', headers);
 
       const response = await request({
         url: `${BASE_URL}${API_ROUTES.COURSE_LIST}`,

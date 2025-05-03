@@ -79,7 +79,7 @@ const CourseDetail = () => {
       });
 
       if (response.code === 200) {
-        setUserRating(value);
+    setUserRating(value);
         showToast({
           title: '评分成功',
           icon: 'success',

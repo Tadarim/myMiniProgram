@@ -10,6 +10,7 @@ interface ScheduleItemProps {
     id: string | number;
     title: string;
     time: string;
+    description: string;
   };
   onDeleteHandler?: (id: string | number) => void;
 }
@@ -22,6 +23,7 @@ export const ScheduleItem = ({ item, onDeleteHandler }: ScheduleItemProps) => {
       <Image className='schedule-item-icon' src={iconUrl} />
       <View className='schedule-item-content'>
         <Text className='schedule-item-title'>{item.title}</Text>
+        <Text className='schedule-item-description'>{item.description}</Text>
         <Text className='schedule-item-time'>{item.time}</Text>
       </View>
       {onDeleteHandler && (
