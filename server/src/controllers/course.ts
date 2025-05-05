@@ -17,7 +17,10 @@ import { pool } from "../utils/pool";
 import { RequestHandler } from "express";
 
 // 获取课程列表
-export const getCourseList: RequestHandler = async (req, res) => {
+export const getCourseList: RequestHandler = async (
+  req: Request,
+  res: Response
+) => {
   try {
     const { page = 1, pageSize = 10, keyword = "" } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
@@ -43,18 +46,18 @@ export const getCourseList: RequestHandler = async (req, res) => {
     `;
 
     const params: any[] = [userId];
-    
+
     // 如果不是管理员，只返回已发布的课程
     if (!isAdmin) {
       sql += " WHERE c.status = 'published'";
     }
-    
+
     if (keyword) {
       sql += isAdmin ? " WHERE " : " AND ";
       sql += "c.title LIKE ? OR c.description LIKE ?";
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
-    
+
     sql += " ORDER BY c.created_at DESC LIMIT ? OFFSET ?";
     params.push(Number(pageSize), offset);
 
@@ -65,7 +68,12 @@ export const getCourseList: RequestHandler = async (req, res) => {
       SELECT COUNT(*) as total 
       FROM courses c
       ${!isAdmin ? "WHERE c.status = 'published'" : ""}
-      ${keyword ? (isAdmin ? "WHERE" : "AND") + " c.title LIKE ? OR c.description LIKE ?" : ""}
+      ${
+        keyword
+          ? (isAdmin ? "WHERE" : "AND") +
+            " c.title LIKE ? OR c.description LIKE ?"
+          : ""
+      }
     `;
     const countParams = keyword ? [`%${keyword}%`, `%${keyword}%`] : [];
     const [{ total }] = await query<RowDataPacket[]>(countSql, countParams);
@@ -757,6 +765,46 @@ export const deleteMaterial = async (req: Request, res: Response) => {
       code: 500,
       success: false,
       message: "删除资料失败",
+    });
+  }
+};
+
+// 新增：更新课程浏览量
+export const updateCourseViewCount = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.body;
+    if (!id) {
+      return res.status(400).json({
+        code: 400,
+        success: false,
+        message: "课程ID不能为空",
+      });
+    }
+    // 检查课程是否存在
+    const checkSql = "SELECT id FROM courses WHERE id = ?";
+    const [course] = await query<CourseRow[]>(checkSql, [id]);
+    if (!course) {
+      return res.status(404).json({
+        code: 404,
+        success: false,
+        message: "课程不存在",
+      });
+    }
+    // 更新 view_count 字段 +1
+    const updateSql =
+      "UPDATE courses SET view_count = IFNULL(view_count,0) + 1 WHERE id = ?";
+    await query(updateSql, [id]);
+    res.json({
+      code: 200,
+      success: true,
+      message: "浏览量已更新",
+    });
+  } catch (error) {
+    console.error("更新课程浏览量失败:", error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: "更新课程浏览量失败",
     });
   }
 };

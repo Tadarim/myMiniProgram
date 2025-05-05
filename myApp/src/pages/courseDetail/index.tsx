@@ -36,6 +36,8 @@ const CourseDetail = () => {
         const courseId = router.params.id;
         if (!courseId) return;
 
+        courseService.updateCourseViewCount(Number(courseId));
+
         const response = await courseService.getCourseDetail(Number(courseId));
         if (response.code === 200 && response.data) {
           setCourseInfo((prev) => ({
@@ -74,12 +76,11 @@ const CourseDetail = () => {
       if (!courseId) return;
 
       const response = await courseService.rateCourse(Number(courseId), {
-        rating: value,
-        comment: '' // 暂时不添加评论
+        rating: value
       });
 
       if (response.code === 200) {
-    setUserRating(value);
+        setUserRating(value);
         showToast({
           title: '评分成功',
           icon: 'success',

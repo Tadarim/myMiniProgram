@@ -27,7 +27,7 @@ export const courseService = {
   }): Promise<ApiResponse<Course[]>> {
     try {
       const token = Taro.getStorageSync('token');
-      console.log('token', token);
+
       if (!token) {
         Taro.navigateTo({
           url: '/pages/login/index'
@@ -137,6 +137,30 @@ export const courseService = {
       throw new Error(response.data.message || '评分失败');
     } catch (error) {
       console.error('Rate course failed:', error);
+      throw error;
+    }
+  },
+
+  async updateCourseViewCount(courseId: number): Promise<ApiResponse<null>> {
+    try {
+      const token = Taro.getStorageSync('token');
+      const response = await request({
+        url: `${BASE_URL}/course/view`,
+        data: {
+          id: courseId
+        },
+        method: 'POST',
+        header: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      if (response.statusCode === 200) {
+        return response.data;
+      }
+      throw new Error(response.data.message || '更新浏览量失败');
+    } catch (error) {
+      console.error('Update course view_count failed:', error);
       throw error;
     }
   }

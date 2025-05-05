@@ -15,7 +15,7 @@ enum TagType {
 interface ListProps {
   contentList?: Array<{
     title: string;
-    desc?: string;
+    description?: string;
     cover?: string;
     tag?: { content: string; type: TagType };
   }>;
@@ -32,12 +32,12 @@ const List = ({
   return (
     <View className={styles['list-wrapper']}>
       {contentList?.map((item, index) => {
-        const { title, desc, cover } = item;
+        const { title, description, cover } = item;
         return (
           <ListItem
             key={index}
             title={title}
-            desc={desc}
+            desc={description}
             cover={cover}
             customStyle={itemStyle}
             suffix={itemSuffix}

@@ -5,17 +5,16 @@ export default defineAppConfig({
     'pages/user/index',
     'pages/chatRoom/index',
     'pages/pinchPage/index',
-    'pages/editProfile/index', // <--- 添加这一行
+    'pages/editProfile/index',
     'pages/chat/index',
     'pages/forum/index',
     'pages/courseList/index',
-    'pages/exercise/index',
     'pages/rankList/index',
     'pages/schedule/index',
     'pages/courseDetail/index',
     'pages/exerciseList/index',
     'pages/postDetail/index',
-    'pages/chapterDetail/index', // 添加章节详情页
+    'pages/chapterDetail/index',
     'pages/exerciseDetail/index'
   ],
   window: {

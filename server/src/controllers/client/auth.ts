@@ -302,7 +302,7 @@ const authController = {
       const { code } = req.body;
 
       // 查找固定的微信用户
-      let user = await findUserById(1); // 使用固定的ID 1
+      let user = await findUserById(4); // 使用固定的ID
 
       if (!user) {
         // 如果用户不存在，创建新用户

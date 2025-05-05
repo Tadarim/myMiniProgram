@@ -8,13 +8,14 @@ import { useState, useEffect } from 'react';
 import { courseService } from '@/api/course';
 import { MyEmpty } from '@/components/empty';
 import NavigationBar from '@/components/navigationBar';
+import { Course } from '@/types/course';
 import { genUrl } from '@/utils';
 
 import './index.less';
 
 const CourseListPage: React.FC = () => {
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [courses, setCourses] = useState<any[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -32,7 +33,7 @@ const CourseListPage: React.FC = () => {
         keyword: searchKeyword ?? ''
       });
 
-      if (response.code === 200) {
+      if (response.code === 200 && response.data) {
         const newCourses = response.data;
         setCourses(isLoadMore ? [...courses, ...newCourses] : newCourses);
         setPage(currentPage);
@@ -112,10 +113,7 @@ const CourseListPage: React.FC = () => {
         </View>
       </View>
 
-      <InfiniteLoading
-        hasMore={courses.length < total}
-        onLoadMore={loadMore}
-      >
+      <InfiniteLoading hasMore={courses.length < total} onLoadMore={loadMore}>
         <View className='course-list'>
           {courses.map((course, index) => (
             <View

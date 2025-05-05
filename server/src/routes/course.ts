@@ -12,27 +12,40 @@ import {
   getChapterDetail,
   reviewMaterial,
   deleteMaterial,
+  updateCourseViewCount,
 } from "../controllers/course";
-import { auth } from "../middleware/auth";
+import {
+  verifyTokenMiddleware,
+  setUserFromToken,
+} from "../middleware/verifyToken";
 
 const router = express.Router();
 
-// 课程相关路由
 router.get("/list", getCourseList);
 router.get("/:id", getCourseDetail);
-router.post("/", auth, createCourse);
-router.put("/:id", auth, updateCourse);
-router.delete("/:id", auth, deleteCourse);
-router.post("/:courseId/rate", auth, rateCourse);
+router.post("/", createCourse);
+router.put("/:id", updateCourse);
+router.delete("/:id", deleteCourse);
 
-// 章节相关路由
-router.post("/chapter", auth, createChapter);
-router.put("/chapter/:id", auth, updateChapter);
-router.delete("/chapter/:id", auth, deleteChapter);
+router.post(
+  "/:courseId/rate",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  rateCourse
+);
+router.post(
+  "/view",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  updateCourseViewCount
+);
+
+router.post("/chapter", createChapter);
+router.put("/chapter/:id", updateChapter);
+router.delete("/chapter/:id", deleteChapter);
 router.get("/chapter/:id", getChapterDetail);
 
-// 资料相关路由
-router.put("/material/:id/review", auth, reviewMaterial);
-router.delete("/material/:id", auth, deleteMaterial);
+router.put("/material/:id/review", reviewMaterial);
+router.delete("/material/:id", deleteMaterial);
 
 export default router;

@@ -1,77 +1,49 @@
-import {
-  View,
-  Text,
-  Radio,
-  RadioGroup,
-  Checkbox,
-  CheckboxGroup
-} from '@tarojs/components';
+import { View, Text, Checkbox, CheckboxGroup } from '@tarojs/components';
 import { showToast, useRouter } from '@tarojs/taro';
 
-import { Star, StarFill } from '@nutui/icons-react-taro';
+import { Star, StarFill, Success } from '@nutui/icons-react-taro';
+import { Dialog, Radio } from '@nutui/nutui-react-taro';
 import React, { useState, useEffect } from 'react';
 
+import { exerciseService } from '@/api/exercise';
 import NavigationBar from '@/components/navigationBar';
+import { Question } from '@/types/exercise';
+
 import './index.less';
 
-const questions = [
-  {
-    id: 1,
-    type: '单选',
-    content:
-      '人们常常把软件工程的方法（开发方法）、工具（支持方法的工具）、（）称为软件工程三要素。',
-    options: [
-      { value: 'A', label: '程序' },
-      { value: 'B', label: '质量' },
-      { value: 'C', label: '人员' },
-      { value: 'D', label: '过程' }
-    ]
-  },
-  {
-    id: 2,
-    type: '多选',
-    content: '以下哪些是软件工程的主要特点？',
-    options: [
-      { value: 'A', label: '过程化' },
-      { value: 'B', label: '工程化' },
-      { value: 'C', label: '规范化' },
-      { value: 'D', label: '文档化' }
-    ]
-  },
-  {
-    id: 3,
-    type: '单选',
-    content:
-      '软件生命周期包括可行性分析与项目开发计划、需求分析、（）、概要设计、详细设计、编码、测试和维护等阶段。',
-    options: [
-      { value: 'A', label: '系统设计' },
-      { value: 'B', label: '系统分析' },
-      { value: 'C', label: '系统实现' },
-      { value: 'D', label: '系统测试' }
-    ]
-  },
-  {
-    id: 4,
-    type: '多选',
-    content: '软件测试的目的包括以下哪些？',
-    options: [
-      { value: 'A', label: '发现软件错误' },
-      { value: 'B', label: '证明软件正确' },
-      { value: 'C', label: '评估软件质量' },
-      { value: 'D', label: '预防软件缺陷' }
-    ]
-  }
-];
+const typeMap = {
+  single: '单选',
+  multiple: '多选'
+};
 
 const ExerciseDetail: React.FC = () => {
   const router = useRouter();
 
   const [currentIndex, setCurrentIndex] = useState(1);
+  const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedAnswer, setSelectedAnswer] = useState<string[]>([]);
-  const [answers, setAnswers] = useState<string[][]>(
-    Array(questions.length).fill([])
-  );
+  const [answers, setAnswers] = useState<string[][]>([[]]);
+  const [correctAnswers, setCorrectAnswers] = useState<string[][]>([]);
   const [isCollected, setIsCollected] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [score, setScore] = useState(0);
+  const [showAnswer, setShowAnswer] = useState(false);
+
+  const fetchExerciseDetail = async () => {
+    try {
+      const res = await exerciseService.getExerciseDetail(
+        router.params.id ?? ''
+      );
+      setQuestions(res.data.questions);
+      setCorrectAnswers(res.data.questions.map((item) => item.answer));
+    } catch (error) {
+      console.error('获取习题详情失败:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchExerciseDetail();
+  }, [router]);
 
   const handleSingleSelect = (value: string) => {
     if (selectedAnswer.length > 0 && selectedAnswer[0] === value) {
@@ -83,6 +55,20 @@ const ExerciseDetail: React.FC = () => {
 
   const handleMultiSelect = (e) => {
     setSelectedAnswer(e.detail.value);
+  };
+
+  const getScore = (answer: string[][], correctAnswer: string[][]) => {
+    let correctNum = 0;
+
+    if (answer.length !== correctAnswer.length) return 0;
+
+    for (let i = 0; i < answer.length; i++) {
+      if (answer[i].sort().join('') === correctAnswer[i].sort().join('')) {
+        correctNum++;
+      }
+    }
+
+    return Number((correctNum / answer.length).toFixed(1)) * 100;
   };
 
   const handleNext = () => {
@@ -99,23 +85,29 @@ const ExerciseDetail: React.FC = () => {
       setCurrentIndex((prev) => prev + 1);
       setSelectedAnswer(newAnswers[currentIndex] || []);
     } else {
-      handleSubmit(newAnswers);
+      if (showAnswer) return;
+
+      if (!selectedAnswer.length) {
+        showToast({ title: '请选择答案', icon: 'none' });
+        return;
+      }
+
+      setShowModal(true);
+      setScore(getScore(newAnswers, correctAnswers));
     }
   };
 
   const handlePrev = () => {
-    if (currentIndex > 1) {
-      const newAnswers = [...answers];
-      newAnswers[currentIndex - 1] = selectedAnswer;
-      setAnswers(newAnswers);
+    const newAnswers = [...answers];
 
-      setCurrentIndex((prev) => prev - 1);
-      setSelectedAnswer(newAnswers[currentIndex - 2] || []);
-    }
+    setCurrentIndex((prev) => prev - 1);
+    setSelectedAnswer(newAnswers[currentIndex - 2] || []);
   };
 
-  const handleSubmit = (finalAnswers: string[][]) => {
-    console.log('提交答案:', finalAnswers);
+  const handleModalConfirm = () => {
+    setShowAnswer(true);
+    setShowModal(false);
+    setCurrentIndex(1);
   };
 
   useEffect(() => {
@@ -142,45 +134,53 @@ const ExerciseDetail: React.FC = () => {
       <NavigationBar title='答题' />
 
       <View className='question-header'>
-        <View className='question-type'>{currentQuestion.type}</View>
-        <View className='question-text'>{currentQuestion.content}</View>
+        <View className='question-type'>{typeMap[currentQuestion?.type]}</View>
+        <View className='question-text'>{currentQuestion?.content}</View>
       </View>
 
       <View className='options-list'>
-        {currentQuestion.type === '单选' ? (
-          <RadioGroup>
-            {currentQuestion.options.map((option) => (
+        {currentQuestion?.type === 'single' ? (
+          <Radio.Group disabled={showAnswer}>
+            {currentQuestion?.options.map((option, index) => (
               <View
-                key={option.value}
+                key={option}
                 className='option-wrapper'
-                onClick={() => handleSingleSelect(option.value)}
+                onClick={() => handleSingleSelect(option)}
               >
                 <Radio
-                  value={option.value}
-                  checked={selectedAnswer.includes(option.value)}
+                  value={option}
+                  checked={selectedAnswer.includes(option)}
                   className='option-item'
                 >
                   <View className='option-content'>
-                    <Text className='option-label'>{option.value}</Text>
-                    <Text className='option-text'>{option.label}</Text>
+                    <Text className='option-label'>
+                      {String.fromCharCode(index + 65)}
+                    </Text>
+                    <Text className='option-text'>{option}</Text>
                   </View>
                 </Radio>
               </View>
             ))}
-          </RadioGroup>
+          </Radio.Group>
         ) : (
-          // 多选部分保持不变
           <CheckboxGroup onChange={handleMultiSelect}>
-            {currentQuestion.options.map((option) => (
-              <View key={option.value} className='option-wrapper'>
+            {currentQuestion?.options.map((option, index) => (
+              <View key={option} className='option-wrapper'>
                 <Checkbox
-                  value={option.value}
-                  checked={selectedAnswer.includes(option.value)}
+                  value={option}
+                  checked={
+                    showAnswer
+                      ? answers.flat(1).includes(option)
+                      : selectedAnswer.includes(option)
+                  }
+                  disabled={showAnswer}
                   className='option-item'
                 >
                   <View className='option-content'>
-                    <Text className='option-label'>{option.value}</Text>
-                    <Text className='option-text'>{option.label}</Text>
+                    <Text className='option-label'>
+                      {String.fromCharCode(index + 65)}
+                    </Text>
+                    <Text className='option-text'>{option}</Text>
                   </View>
                 </Checkbox>
               </View>
@@ -188,6 +188,14 @@ const ExerciseDetail: React.FC = () => {
           </CheckboxGroup>
         )}
       </View>
+      {showAnswer && (
+        <View className='correct-answer'>
+          正确答案：
+          <Text className='answer'>
+            {correctAnswers[currentIndex - 1].join(' ,')}
+          </Text>{' '}
+        </View>
+      )}
 
       <View className='question-footer'>
         <View className='progress-dots'>
@@ -222,6 +230,21 @@ const ExerciseDetail: React.FC = () => {
           </View>
         </View>
       </View>
+
+      <Dialog
+        id='dialog'
+        title='提交成功'
+        visible={showModal}
+        confirmText='查看答案'
+        onConfirm={handleModalConfirm}
+        onCancel={() => setShowModal(false)}
+        closeOnOverlayClick
+      >
+        <View className='dialog-content'>
+          <Success size={40} style={{ margin: '16px 0' }} />
+          <Text style={{ marginBottom: '16px' }}>分数: {score}</Text>
+        </View>
+      </Dialog>
     </View>
   );
 };

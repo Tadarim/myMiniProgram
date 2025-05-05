@@ -1,32 +1,56 @@
-import { Request, Response } from "express";
+import { Request, RequestHandler, Response } from "express";
 import pool from "../config/database";
 
 // 获取习题集列表
-export const getExerciseSets = async (req: Request, res: Response) => {
+export const getExerciseSets: RequestHandler = async (
+  req: Request,
+  res: Response
+) => {
   try {
-    const { title } = req.query;
+    const { page = 1, pageSize = 10, keyword = "" } = req.query;
+    const offset = (Number(page) - 1) * Number(pageSize);
 
-    let query = `
-      SELECT es.*, 
-      (SELECT COUNT(*) FROM questions WHERE exercise_set_id = es.id) as question_count
+    let sql = `
+      SELECT 
+        es.id,
+        es.title,
+        es.description,
+        es.created_at,
+        es.updated_at,
+        (SELECT COUNT(*) FROM questions WHERE exercise_set_id = es.id) as question_count
       FROM exercise_sets es
       WHERE 1=1
     `;
     const params: any[] = [];
 
-    if (title) {
-      query += " AND es.title LIKE ?";
-      params.push(`%${title}%`);
+    if (keyword) {
+      sql += " AND (es.title LIKE ? OR es.description LIKE ?)";
+      params.push(`%${keyword}%`, `%${keyword}%`);
     }
 
-    query += " ORDER BY es.created_at DESC";
+    sql += " ORDER BY es.created_at DESC LIMIT ? OFFSET ?";
+    params.push(Number(pageSize), offset);
 
-    const [rows] = await pool.query(query, params);
+    const [rows] = await pool.query(sql, params);
+
+    // 获取总数
+    let countSql = `SELECT COUNT(*) as total FROM exercise_sets es WHERE 1=1`;
+    const countParams: any[] = [];
+    if (keyword) {
+      countSql += " AND (es.title LIKE ? OR es.description LIKE ?)";
+      countParams.push(`%${keyword}%`, `%${keyword}%`);
+    }
+    const [countRows] = await pool.query(countSql, countParams);
+    let total = 0;
+    if (Array.isArray(countRows) && countRows.length > 0) {
+      total = (countRows[0] as any).total || 0;
+    }
 
     res.json({
-      code: 0,
+      code: 200,
       success: true,
       data: rows,
+      total,
       message: "获取成功",
     });
   } catch (error) {
@@ -66,7 +90,7 @@ export const createExerciseSet = async (req: Request, res: Response) => {
     );
 
     res.json({
-      code: 0,
+      code: 200,
       success: true,
       data: (newExerciseSet as any[])[0],
       message: "创建成功",
@@ -109,7 +133,7 @@ export const updateExerciseSet = async (req: Request, res: Response) => {
     );
 
     res.json({
-      code: 0,
+      code: 200,
       success: true,
       data: (updatedExerciseSet as any[])[0],
       message: "更新成功",
@@ -132,7 +156,7 @@ export const deleteExerciseSet = async (req: Request, res: Response) => {
     await pool.query("DELETE FROM exercise_sets WHERE id = ?", [id]);
 
     res.json({
-      code: 0,
+      code: 200,
       success: true,
       message: "删除成功",
     });
@@ -173,7 +197,7 @@ export const getExerciseSetDetail = async (req: Request, res: Response) => {
     );
 
     res.json({
-      code: 0,
+      code: 200,
       success: true,
       data: {
         ...(exerciseSet as any[])[0],
