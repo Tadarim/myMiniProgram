@@ -7,6 +7,7 @@ import {
   getExerciseSetDetail,
   addQuestion,
   deleteQuestion,
+  updateCompleteCount,
 } from "../controllers/exercise";
 
 const router = Router();
@@ -31,5 +32,8 @@ router.post("/:exerciseSetId/questions/add", addQuestion);
 
 // 删除题目
 router.delete("/:exerciseSetId/questions/:questionId", deleteQuestion);
+
+// 更新完成数
+router.post("/:exerciseSetId/complete", updateCompleteCount);
 
 export default router;

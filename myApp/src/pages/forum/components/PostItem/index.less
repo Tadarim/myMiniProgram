@@ -1,92 +1,100 @@
 .post-item {
-  // 移除 position: relative; 如果不再需要绝对定位子元素
   margin-bottom: 10px;
   border-radius: 0; // 可以移除圆角，或保留用于卡片样式
   overflow: visible; // 改回 visible
   background-color: #fff; // 保持白色背景
   padding: 15px; // 给整个卡片添加内边距
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); // 可以加个轻微阴影
-}
 
-/* 移除 .post-background-image 和 .post-overlay 样式 */
+  .menu-list {
+    padding: 16px;
+    background: #fff;
+    border-radius: 12px 12px 0 0;
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      font-size: 16px;
+      color: #333;
+      border-bottom: 1px solid #f5f5f5;
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      text {
+        margin-left: 8px;
+      }
+    }
+  }
+}
 
 .post-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  // 移除 padding，因为父元素已有
-  // 移除 position 和 z-index
-  margin-bottom: 10px; // 头部和内容间距
+  margin-bottom: 10px;
 
   .user-info {
     display: flex;
     align-items: center;
-    color: #333; // !! 改回深色 !!
+    color: #333;
 
     .avatar {
       width: 40px;
       height: 40px;
       border-radius: 50%;
       margin-right: 10px;
-      border: none; // 移除边框
+      border: none;
     }
 
-    .name-time {
-      display: flex;
-      flex-direction: column;
+    .username {
+      font-weight: bold;
+      font-size: 15px;
+      color: #333;
+    }
 
-      .username {
-        font-weight: bold;
-        font-size: 15px;
-        color: #333; // 确保颜色
-      }
-
-      .time-ago {
-        font-size: 12px;
-        color: #999; // !! 改为灰色 !!
-      }
+    .time-ago {
+      font-size: 12px;
+      margin-left: 5px;
+      color: #999;
     }
   }
 
   .options-button {
-    position: relative; // 保持相对定位，为菜单
+    position: relative;
     padding: 5px;
     cursor: pointer;
-    // 移除 z-index
-
-    // 图标颜色由 CSS 控制，移除 !important
-    .nut-icon {
-      color: #666; // 设置默认图标颜色为灰色
-    }
 
     .options-menu {
       position: absolute;
       top: calc(100% + 5px);
       right: 0;
-      background-color: #fff; // !! 改为白色背景 !!
+      background-color: #fff;
       border-radius: 6px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); // 调整阴影
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       padding: 6px 0;
       min-width: 120px;
-      z-index: 11; // 保持 z-index
-      border: 1px solid #eee; // 加个边框
+      z-index: 11;
+      border: 1px solid #eee;
 
       .menu-item {
         display: flex;
         align-items: center;
         padding: 10px 15px;
-        color: #333; // !! 改为深色文字 !!
+        color: #333;
         font-size: 14px;
         cursor: pointer;
         transition: background-color 0.2s;
 
         &:hover,
         &:active {
-          background-color: #f5f5f5; // !! 改为浅灰色悬停背景 !!
+          background-color: #f5f5f5;
         }
 
         .nut-icon {
-          color: #666 !important; // 菜单内图标颜色
+          color: #666 !important;
           margin-right: 8px;
         }
 
@@ -128,41 +136,32 @@
 }
 
 .post-footer {
-  // 移除 padding，因为父元素已有
   display: flex;
-  justify-content: flex-end; // 交互项靠右
-  // 移除 z-index 和 position
-  margin-top: 10px; // 与上方元素间距
+  justify-content: flex-end;
+  margin-top: 10px;
 
   .interaction {
-    display: flex; // 让内部 item 水平排列
-    align-items: center; // 垂直居中
-    color: #666; // !! 改为灰色 !!
+    display: flex;
+    align-items: center;
+    color: #666;
     font-size: 13px;
 
     .interaction-item {
-      // 每个交互项（图标+文字）
       display: flex;
       align-items: center;
-      margin-left: 20px; // 项之间的间距
-      cursor: pointer; // 添加手型光标
+      margin-left: 20px;
+      cursor: pointer;
 
       &:first-child {
         margin-left: 0;
       }
 
       .nut-icon {
-        // 图标样式
-        color: #666; // 图标颜色
-        margin-right: 4px; // 图标和文字间距
-      }
-
-      .interaction-text {
-        // 文字样式
+        color: #666;
+        margin-right: 4px;
       }
 
       &:hover {
-        // 可选：悬停效果
         color: #333;
         .nut-icon {
           color: #333;
@@ -170,4 +169,83 @@
       }
     }
   }
+}
+
+.help-badge {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background: linear-gradient(135deg, #1890ff, #40a9ff);
+  color: white;
+  padding: 4px 12px;
+  font-size: 12px;
+  transform: translate(-8px, -8px) rotate(-45deg);
+  transform-origin: 0 0;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100px;
+  height: 24px;
+  justify-content: center;
+
+  .help-status {
+    font-weight: bold;
+    transform: rotate(45deg);
+  }
+}
+
+.post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 0;
+  margin-top: 10px;
+
+  .nut-tag {
+    margin: 0;
+    background-color: #f5f5f5;
+    border: none;
+    font-size: 12px;
+    border-radius: 4px;
+  }
+}
+
+.post-type {
+  margin-left: 10px;
+}
+
+.post-file-block {
+  display: flex;
+  align-items: center;
+  border: 1px solid #e5e6eb;
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-top: 10px;
+  background: #fafbfc;
+  max-width: 90%;
+}
+
+.file-icon {
+  font-size: 28px;
+  margin-right: 12px;
+  color: #5b8cff;
+}
+
+.file-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.file-name {
+  font-size: 15px;
+  color: #222;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.file-link {
+  color: #1e80ff;
+  font-size: 13px;
+  margin-top: 2px;
+  cursor: pointer;
 }

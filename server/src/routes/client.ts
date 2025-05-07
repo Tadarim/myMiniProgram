@@ -10,9 +10,7 @@ router.post("/auth/send-code", authController.sendVerificationCode);
 router.post("/auth/reset-password", authController.resetPassword);
 router.post("/auth/wechat-login", authController.wechatLogin);
 
-
 router.post("/auth/update-profile", verifyTokenMiddleware(), setUserFromToken, authController.updateUserInfo);
-
 
 router.use("/", clientRoutes);
 

@@ -297,3 +297,63 @@ export const deleteQuestion = async (req: Request, res: Response) => {
     });
   }
 };
+
+// 更新习题集完成数量
+export const updateCompleteCount = async (req: Request, res: Response) => {
+  try {
+    const { exerciseSetId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({
+        code: 400,
+        success: false,
+        message: "用户ID不能为空",
+      });
+    }
+
+    if (!exerciseSetId) {
+      return res.status(400).json({
+        code: 400,
+        success: false,
+        message: "习题集ID不能为空",
+      });
+    }
+
+    // 添加完成记录
+    await pool.query(
+      "INSERT INTO exercise_completions (exercise_set_id, user_id, completed_at) VALUES (?, ?, NOW())",
+      [exerciseSetId, userId]
+    );
+
+    // 更新习题集的完成数量
+    await pool.query(
+      "UPDATE exercise_sets SET complete_count = (SELECT COUNT(*) FROM exercise_completions WHERE exercise_set_id = ?) WHERE id = ?",
+      [exerciseSetId, exerciseSetId]
+    );
+
+    // 获取更新后的习题集信息
+    const [updatedExerciseSet] = await pool.query(
+      `SELECT es.*, 
+       (SELECT COUNT(*) FROM questions WHERE exercise_set_id = es.id) as question_count,
+       (SELECT COUNT(*) FROM exercise_completions WHERE exercise_set_id = es.id) as complete_count
+       FROM exercise_sets es
+       WHERE es.id = ?`,
+      [exerciseSetId]
+    );
+
+    res.json({
+      code: 200,
+      success: true,
+      data: (updatedExerciseSet as any[])[0],
+      message: "更新成功",
+    });
+  } catch (error) {
+    console.error("更新完成数量失败:", error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: "服务器错误",
+    });
+  }
+};

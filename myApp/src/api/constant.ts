@@ -18,5 +18,9 @@ export const API_ROUTES = {
   SCHEDULE_LIST: '/schedule/list',
   CREATE_SCHEDULE: '/schedule/create',
   DELETE_SCHEDULE: '/schedule/delete/',
-  EXERCISE_LIST: '/exercise/list'
+  EXERCISE_LIST: '/exercise/list',
+  POST_LIST: '/posts/list',
+  CREATE_POST: '/posts/create',
+  DELETE_POST: '/posts/delete/',
+  UPLOAD_POST: '/posts/upload'
 };

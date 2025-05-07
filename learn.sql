@@ -148,6 +148,99 @@ CREATE TABLE IF NOT EXISTS questions (
     FOREIGN KEY (exercise_set_id) REFERENCES exercise_sets (id) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS exercise_completions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    exercise_set_id INT NOT NULL,
+    user_id INT NOT NULL,
+    completed_at DATETIME NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (exercise_set_id) REFERENCES exercise_sets (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+-- 添加索引
+CREATE INDEX idx_exercise_completions_exercise_set_id ON exercise_completions (exercise_set_id);
+
+CREATE INDEX idx_exercise_completions_user_id ON exercise_completions (user_id);
+
+-- 帖子表
+CREATE TABLE IF NOT EXISTS posts (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    author_id INT NOT NULL,
+    content TEXT NOT NULL,
+    attachments JSON,
+    type ENUM('normal', 'help') NOT NULL DEFAULT 'normal',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- 标签表
+CREATE TABLE IF NOT EXISTS tags (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(50) NOT NULL UNIQUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 帖子标签关联表
+CREATE TABLE IF NOT EXISTS post_tags (
+    post_id INT NOT NULL,
+    tag_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, tag_id),
+    FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+);
+
+-- 帖子点赞表
+CREATE TABLE IF NOT EXISTS post_likes (
+    post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, user_id),
+    FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- 帖子收藏表
+CREATE TABLE IF NOT EXISTS post_collections (
+    post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (post_id, user_id),
+    FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- 评论表
+CREATE TABLE IF NOT EXISTS comments (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    post_id INT NOT NULL,
+    user_id INT NOT NULL,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- 评论点赞表
+CREATE TABLE IF NOT EXISTS comment_likes (
+    comment_id INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (comment_id, user_id),
+    FOREIGN KEY (comment_id) REFERENCES comments (id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- 添加索引
+CREATE INDEX idx_posts_author_id ON posts (author_id);
+CREATE INDEX idx_posts_created_at ON posts (created_at);
+CREATE INDEX idx_comments_post_id ON comments (post_id);
+CREATE INDEX idx_comments_user_id ON comments (user_id);
+
 -- 插入用户数据
 INSERT INTO
     users (
@@ -411,3 +504,60 @@ VALUES (
         '["响应式系统", "虚拟DOM", "组件化", "模板语法"]',
         '["响应式系统", "虚拟DOM", "组件化", "模板语法"]'
     );
+
+-- 插入帖子数据
+INSERT INTO posts (author_id, content, attachments, type) VALUES
+(1, '大家好，我是新来的，请问如何开始学习编程？', '[]', 'help'),
+(2, '分享一个学习Python的好方法：每天坚持写代码，从简单的开始。', '[{"type": "image", "url": "https://example.com/image1.jpg"}]', 'normal'),
+(3, '有人能推荐一些好的数据结构学习资源吗？', '[{"type": "file", "url": "https://example.com/file1.pdf", "name": "数据结构.pdf"}]', 'help');
+
+-- 插入标签数据
+INSERT INTO tags (name) VALUES
+('编程'),
+('Python'),
+('数据结构'),
+('学习经验'),
+('求助');
+
+-- 插入帖子标签关联数据
+INSERT INTO post_tags (post_id, tag_id) VALUES
+(1, 1),
+(1, 5),
+(2, 1),
+(2, 2),
+(2, 4),
+(3, 1),
+(3, 3),
+(3, 5);
+
+-- 插入评论数据
+INSERT INTO comments (post_id, user_id, content) VALUES
+(1, 2, '建议从Python开始，语法简单，容易上手。'),
+(1, 3, '可以看看《Python编程：从入门到实践》这本书。'),
+(2, 1, '感谢分享，这个方法确实有效！'),
+(3, 2, '推荐《算法导论》和LeetCode刷题。');
+
+-- 插入点赞数据
+INSERT INTO post_likes (post_id, user_id) VALUES
+(1, 2),
+(1, 3),
+(2, 1),
+(2, 3),
+(3, 1),
+(3, 2);
+
+-- 插入收藏数据
+INSERT INTO post_collections (post_id, user_id) VALUES
+(1, 2),
+(2, 1),
+(2, 3),
+(3, 1);
+
+-- 插入评论点赞数据
+INSERT INTO comment_likes (comment_id, user_id) VALUES
+(1, 1),
+(1, 3),
+(2, 1),
+(3, 2),
+(4, 1),
+(4, 3);

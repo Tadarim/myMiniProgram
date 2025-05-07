@@ -1,106 +1,178 @@
-import { ScrollView, View, Text } from '@tarojs/components';
-import { getSystemInfoSync } from '@tarojs/taro';
+import { View, Text } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 
 import { Add } from '@nutui/icons-react-taro';
-import React, { useState } from 'react';
+import { InfiniteLoading } from '@nutui/nutui-react-taro';
+import { useSetAtom } from 'jotai';
+import React, { useState, useEffect } from 'react';
 
 import { PopupRender } from './components/popup';
 import PostItem from './components/PostItem';
 
+import { Post, getPosts, createPost } from '@/api/post';
 import NavigationBar from '@/components/navigationBar';
-import { Post } from '@/types/post';
+import { postStatusMapAtom } from '@/store/post';
+import { PostStatus } from '@/types/post';
 
 import './index.less';
 
-const initialPosts: Post[] = [
-  {
-    id: 1,
-    authorId: 1,
-    avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-    username: 'Chen Kang',
-    timeAgo: '2 days ago',
-    content: '我在学习React时遇到了一些问题，希望能得到帮助...',
-    backgroundImage: 'https://images.unsplash.com/photo-1522926193341-e9ffd686c60f?q=80&w=1000',
-    likes: 24,
-    comments: 12,
-    isLiked: false,
-    isCollected: false,
-    type: 'help',
-    rewardPoints: 50,
-    status: 'open',
-    tags: ['学习问题', 'React']
-  },
-  {
-    id: 2,
-    authorId: 2,
-    avatar: 'https://avatars.githubusercontent.com/u/2?v=4',
-    username: 'Bob Tom',
-    timeAgo: '3 days ago',
-    content: '今天天气真好，适合出去走走...',
-    backgroundImage: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1000',
-    likes: 18,
-    comments: 8,
-    isLiked: true,
-    isCollected: true,
-    type: 'normal',
-    rewardPoints: 0,
-    status: 'open',
-    tags: []
-  }
-];
-
 const ForumPage: React.FC = () => {
-  const [posts, setPosts] = useState<Post[]>([...initialPosts]);
-
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [filterType, setFilterType] = useState<'all' | 'help' | 'normal'>(
+    'all'
+  );
   const [isPopupShow, setIsPopupShow] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const pageSize = 10;
 
-  const systemInfo = getSystemInfoSync();
-  const statusBarHeight = systemInfo.statusBarHeight ?? 44;
+  const setPostStatusMap = useSetAtom(postStatusMapAtom);
+
+  const fetchPosts = async (pageNum = 1) => {
+    try {
+      setLoading(true);
+      const response = await getPosts({
+        page: pageNum,
+        pageSize,
+        type: filterType
+      });
+
+      if (pageNum === 1) {
+        setPosts(response.data);
+        const statusMap: Record<number, PostStatus> = {};
+        response.data.forEach((post) => {
+          statusMap[post.id] = {
+            id: post.id,
+            is_liked: post.is_liked,
+            likes_count: post.likes_count,
+            comments_count: post.comments_count
+          };
+        });
+        setPostStatusMap(statusMap);
+      } else {
+        setPosts((prev) => [...prev, ...response.data]);
+        setPostStatusMap((prev) => {
+          const newMap = { ...prev };
+          response.data.forEach((post) => {
+            newMap[post.id] = {
+              id: post.id,
+              is_liked: post.is_liked,
+              likes_count: post.likes_count,
+              comments_count: post.comments_count
+            };
+          });
+          return newMap;
+        });
+      }
+      setTotal(response.total || 0);
+    } catch (error) {
+      console.error('获取帖子失败:', error);
+      Taro.showToast({
+        title: '获取帖子失败',
+        icon: 'none'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPosts(1);
+  }, [filterType]);
+
+  useEffect(() => {
+    const handler = (data) => {
+      setPosts((prev) =>
+        prev.map((post) =>
+          post.id === data.postId
+            ? {
+                ...post,
+                is_liked: data.is_liked,
+                likes_count: data.likes_count
+              }
+            : post
+        )
+      );
+    };
+    Taro.eventCenter.on('updatePostLike', handler);
+    return () => {
+      Taro.eventCenter.off('updatePostLike', handler);
+    };
+  }, []);
 
   const btnClickHandler = () => {
     setIsPopupShow(true);
   };
 
-  const publishHandler = ({ content, image, type, rewardPoints, tags }) => {
-    setPosts((prev) => [
-      {
-        id: posts.length + 1,
-        authorId: 1, // 这里应该是当前登录用户的ID
-        avatar: 'https://avatars.githubusercontent.com/u/1?v=4', // 这里应该是当前登录用户的头像
-        username: 'Current User', // 这里应该是当前登录用户的用户名
-        timeAgo: '刚刚',
+  const publishHandler = async ({ content, image, type, tags }) => {
+    try {
+      const response = await createPost({
         content,
-        backgroundImage: image?.[0]?.url,
-        likes: 0,
-        comments: 0,
-        isLiked: false,
-        isCollected: false,
         type,
-        rewardPoints,
-        status: 'open',
-        tags
-      },
-      ...prev
-    ]);
-    setIsPopupShow(false);
+        tags,
+        attachments: image?.map(img => ({ url: img.url, type: 'image', name: img.name || '' }))
+      });
+
+      setPosts((prev) => [response.data, ...prev]);
+      setIsPopupShow(false);
+      Taro.showToast({
+        title: '发布成功',
+        icon: 'success'
+      });
+    } catch (error) {
+      console.error('发布帖子失败:', error);
+      Taro.showToast({
+        title: '发布失败',
+        icon: 'none'
+      });
+    }
+  };
+
+  const loadMore = async () => {
+    if (posts.length < total && !loading) {
+      await fetchPosts(page + 1);
+      setPage((prev) => prev + 1);
+    }
   };
 
   return (
     <View className='forum-page'>
       <NavigationBar title='论坛' showBack={false} />
-      <ScrollView
-        scrollY
-        scrollWithAnimation
-        className='posts-container'
-        style={{ paddingTop: `${statusBarHeight + 44}px` }}
+
+      <View className='filter-container'>
+        <View
+          className={`filter-item ${filterType === 'all' ? 'active' : ''}`}
+          onClick={() => setFilterType('all')}
+        >
+          全部
+        </View>
+        <View
+          className={`filter-item ${filterType === 'normal' ? 'active' : ''}`}
+          onClick={() => setFilterType('normal')}
+        >
+          普通帖
+        </View>
+        <View
+          className={`filter-item ${filterType === 'help' ? 'active' : ''}`}
+          onClick={() => setFilterType('help')}
+        >
+          求助帖
+        </View>
+      </View>
+
+      <InfiniteLoading
+        hasMore={posts.length < total}
+        onLoadMore={loadMore}
+        loadingText='加载中...'
+        loadMoreText='没有更多了'
       >
-        {posts.map((post) => (
-          <PostItem
-            key={post.id}
-            {...post}
-          />
-        ))}
-      </ScrollView>
+        <View className='posts-container'>
+          {posts.map((post) => (
+            <PostItem key={post.id} {...post} />
+          ))}
+        </View>
+      </InfiniteLoading>
 
       <View className='add-post-button' onClick={btnClickHandler}>
         <Add />

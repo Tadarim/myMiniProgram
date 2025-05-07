@@ -7,38 +7,60 @@ import {
   Star,
   Heart,
   HeartFill,
-  Comment
+  Comment,
+  Close
 } from '@nutui/icons-react-taro';
 import { Tag } from '@nutui/nutui-react-taro';
-import React, { useState } from 'react';
+import { useAtom } from 'jotai';
+import React, { useState, useEffect } from 'react';
 
-import { Post } from '@/types/post';
+import { Post, deletePost, toggleLike } from '@/api/post';
+import { postStatusMapAtom } from '@/store/post';
 
 import './index.less';
 
-interface PostItemProps extends Post {}
+interface PostItemProps extends Omit<Post, 'tags'> {
+  tags: string | string[];
+  onDelete?: (postId: number) => void;
+}
 
 const PostItem: React.FC<PostItemProps> = ({
   id,
-  authorId,
+  author_id,
   avatar,
   username,
-  timeAgo,
+  time_ago,
   content,
-  backgroundImage: postImage,
-  likes,
-  comments,
-  isLiked,
-  isCollected,
+  attachments,
+  likes_count,
+  comments_count,
+  is_liked,
+  is_collected,
   type,
-  rewardPoints,
-  status,
-  tags
+  tags,
+  onDelete,
+  ...rest
 }) => {
+  const [postStatusMap, setPostStatusMap] = useAtom(postStatusMapAtom);
+  const postStatus = postStatusMap[id];
+  // 优先用全局状态
+  const currentUserLiked = postStatus?.is_liked ?? is_liked;
+  const currentLikes = postStatus?.likes_count ?? likes_count;
+  const currentComments = postStatus?.comments_count ?? comments_count;
   const [isMenuVisible, setIsMenuVisible] = useState(false);
-  const [currentUserLiked, setCurrentUserLiked] = useState(isLiked);
-  const [currentCollected, setCurrentCollected] = useState(isCollected);
-  const [currentLikes, setCurrentLikes] = useState(likes);
+  const [currentCollected, setCurrentCollected] = useState(is_collected);
+  const [isDeleted, setIsDeleted] = useState(false);
+
+  // 获取当前用户ID
+  const currentUserId = Taro.getStorageSync('userInfo')?.id;
+
+  // 处理tags，确保它是一个数组
+  const tagList = Array.isArray(tags) ? tags : tags ? tags.split(',') : [];
+
+  // 新增：监听props变化，自动同步
+  useEffect(() => {
+    setCurrentCollected(is_collected);
+  }, [is_collected]);
 
   const navigateToDetail = () => {
     if (isMenuVisible) {
@@ -58,56 +80,150 @@ const PostItem: React.FC<PostItemProps> = ({
 
   const handleCollectClick = (e) => {
     e.stopPropagation();
-
-    setCurrentCollected(!currentCollected);
-
+    const newCollectedStatus = !currentCollected;
+    setCurrentCollected(newCollectedStatus);
     showToast({
-      title: !currentCollected ? '收藏成功' : '取消收藏',
+      title: newCollectedStatus ? '收藏成功' : '取消收藏',
       icon: 'success',
       duration: 1500
     });
-
-    setTimeout(() => {
-      setIsMenuVisible(false);
-    }, 200);
+    setIsMenuVisible(false);
   };
 
-  const handleLikeClick = (e) => {
+  const handleLikeClick = async (e) => {
     e.stopPropagation();
-    const newLikedStatus = !currentUserLiked;
-    setCurrentUserLiked(newLikedStatus);
-
-    setCurrentLikes((prevLikes) =>
-      newLikedStatus ? prevLikes + 1 : prevLikes - 1
-    );
+    try {
+      const res = await toggleLike(id);
+      setPostStatusMap((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          is_liked: res.data.is_liked,
+          likes_count: res.data.likes_count
+        }
+      }));
+    } catch (error) {
+      showToast({
+        title: '操作失败',
+        icon: 'error',
+        duration: 1500
+      });
+    }
   };
+
+  const handleDelete = async () => {
+    try {
+      await deletePost(id);
+      showToast({
+        title: '删除成功',
+        icon: 'success',
+        duration: 1500
+      });
+      // 设置删除状态
+      setIsDeleted(true);
+      // 触发父组件刷新列表
+      if (onDelete) {
+        onDelete(id);
+      }
+    } catch (error) {
+      showToast({
+        title: '删除失败',
+        icon: 'error',
+        duration: 1500
+      });
+    }
+    setIsMenuVisible(false);
+  };
+
+  const getFileExt = (url) => {
+    const cleanUrl = url.split('?')[0];
+    return cleanUrl.split('.').pop().toLowerCase();
+  };
+  const supportedTypes = [
+    'pdf',
+    'doc',
+    'docx',
+    'xls',
+    'xlsx',
+    'ppt',
+    'pptx',
+    'txt'
+  ];
+  const handleFileClick = (file) => {
+    const ext = getFileExt(file.url);
+    if (supportedTypes.includes(ext)) {
+      Taro.showLoading({ title: '下载中...' });
+      Taro.downloadFile({
+        url: file.url,
+        success: function (res) {
+          Taro.hideLoading();
+          if (res.statusCode === 200) {
+            Taro.openDocument({
+              filePath: res.tempFilePath,
+              fileType: ext,
+              showMenu: true
+            });
+          } else {
+            Taro.showToast({ title: '文件下载失败', icon: 'none' });
+          }
+        },
+        fail: function () {
+          Taro.hideLoading();
+          Taro.showToast({ title: '文件下载失败', icon: 'none' });
+        }
+      });
+    } else {
+      Taro.showToast({ title: '该文件类型暂不支持预览', icon: 'none' });
+    }
+  };
+
+  // 如果帖子已删除，不渲染任何内容
+  if (isDeleted) {
+    return null;
+  }
 
   return (
     <View className='post-item' onClick={navigateToDetail}>
       <View className='post-header'>
         <View className='user-info'>
           <Image className='avatar' src={avatar} />
-          <View className='name-time'>
-            <Text className='username'>{username}</Text>
-            <Text className='time-ago'>{timeAgo}</Text>
+          <Text className='username'>{username}</Text>
+          <Text className='time-ago'>{time_ago}</Text>
+          <View className='post-type'>
+            {type === 'help' ? (
+              <Tag type='primary'>求助</Tag>
+            ) : (
+              <Tag type='default' color='#333'>
+                普通
+              </Tag>
+            )}
           </View>
         </View>
-        {type === 'help' && (
-          <View className='help-badge'>
-            <Text className='help-status'>{status === 'open' ? '求助中' : '已解决'}</Text>
-            <Text className='reward-points'>{rewardPoints}积分</Text>
-          </View>
-        )}
         <View className='options-button' onClick={toggleMenu}>
-          <More size={20} />
+          <More />
           {isMenuVisible && (
             <View className='options-menu'>
               <View className='menu-item' onClick={handleCollectClick}>
-                {currentCollected ? <StarFill size={16} /> : <Star size={16} />}
-                <Text className='menu-text'>
-                  {currentCollected ? '取消收藏' : '收藏'}
-                </Text>
+                {currentCollected ? (
+                  <>
+                    <StarFill size={16} color='#ff9900' />
+                    <Text className='menu-text'>取消收藏</Text>
+                  </>
+                ) : (
+                  <>
+                    <Star size={16} />
+                    <Text className='menu-text'>收藏</Text>
+                  </>
+                )}
               </View>
+              {currentUserId === author_id && (
+                <View className='menu-item' onClick={handleDelete}>
+                  <Close size={16} color='#ff4d4f' />
+                  <Text className='menu-text' style={{ color: '#ff4d4f' }}>
+                    删除
+                  </Text>
+                </View>
+              )}
             </View>
           )}
         </View>
@@ -115,23 +231,46 @@ const PostItem: React.FC<PostItemProps> = ({
 
       <View className='post-content'>
         <Text className='content-text'>{content}</Text>
+        {attachments &&
+          attachments
+            .filter((att) => att.type === 'image')
+            .map((img) => (
+              <Image
+                className='post-image'
+                src={img.url}
+                mode='widthFix'
+                key={img.url}
+              />
+            ))}
+        {attachments &&
+          attachments
+            .filter((att) => att.type === 'file')
+            .map((file) => (
+              <View className='post-file-block' key={file.url}>
+                <View className='file-icon'>📄</View>
+                <View className='file-info'>
+                  <Text className='file-name'>{file.name || '附件'}</Text>
+                  <Text
+                    className='file-link'
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleFileClick(file);
+                    }}
+                  >
+                    查看/下载
+                  </Text>
+                </View>
+              </View>
+            ))}
       </View>
 
-      {tags && tags.length > 0 && (
-        <View className='post-tags'>
-          {tags.map(tag => (
-            <Tag key={tag} type='primary'>{tag}</Tag>
+      {tagList.length > 0 && (
+        <View className='tags-container'>
+          {tagList.map((tag, index) => (
+            <Tag key={index} type='default' plain>
+              {tag}
+            </Tag>
           ))}
-        </View>
-      )}
-
-      {postImage && (
-        <View className='post-image-container'>
-          <Image
-            className='post-image'
-            src={postImage}
-            mode='aspectFill'
-          />
         </View>
       )}
 
@@ -147,7 +286,7 @@ const PostItem: React.FC<PostItemProps> = ({
           </View>
           <View className='interaction-item'>
             <Comment size={18} />
-            <Text className='interaction-text'>{comments}</Text>
+            <Text className='interaction-text'>{currentComments}</Text>
           </View>
         </View>
       </View>

@@ -1,18 +1,29 @@
+export interface Attachment {
+  url: string;
+  type: string;
+  name: string;
+}
+
 export interface Post {
   id: number;
-  authorId: number;
+  author_id: number;
   avatar: string;
   username: string;
-  timeAgo: string;
+  time_ago: string;
   content: string;
-  backgroundImage?: string;
-  likes: number;
-  comments: number;
-  isLiked: boolean;
-  isCollected: boolean;
-  // 新增互助相关字段
+  attachments: Attachment[];
+  likes_count: number;
+  comments_count: number;
+  is_liked: boolean;
+  is_collected: boolean;
   type: 'normal' | 'help';
-  rewardPoints: number;
   status: 'open' | 'closed';
-  tags: string[];
+  tags?: string[];
+}
+
+export interface PostStatus {
+  id: number;
+  is_liked: boolean;
+  likes_count: number;
+  comments_count: number;
 }

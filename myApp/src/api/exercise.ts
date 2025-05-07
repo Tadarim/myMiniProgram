@@ -49,21 +49,6 @@ export const exerciseService = {
     return res.data;
   },
 
-  // 提交答题
-  async submitExercise(id: string, answers: any) {
-    const token = Taro.getStorageSync('token');
-    const res = await request({
-      url: `${BASE_URL}/exercise/${id}/submit`,
-      method: 'POST',
-      data: { answers },
-      header: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      }
-    });
-    return res.data;
-  },
-
   // 收藏/取消收藏
   async collectExercise(id: string, collect: boolean) {
     const token = Taro.getStorageSync('token');
@@ -77,5 +62,32 @@ export const exerciseService = {
       }
     });
     return res.data;
+  },
+
+  // 更新完成数
+  async updateCompleteCount(id: string) {
+    const token = Taro.getStorageSync('token');
+    const userId = Taro.getStorageSync('userInfo').id;
+
+    if (!token || !userId) {
+      Taro.navigateTo({
+        url: '/pages/login/index'
+      });
+      throw new Error('请先登录');
+    }
+
+    const res = await request({
+      url: `${BASE_URL}/exercise/${id}/complete`,
+      method: 'POST',
+      data: { userId },
+      header: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (res.statusCode === 200) {
+      return res.data;
+    }
   }
 };

@@ -92,6 +92,7 @@ const ExerciseDetail: React.FC = () => {
         return;
       }
 
+      exerciseService.updateCompleteCount(router.params.id ?? '');
       setShowModal(true);
       setScore(getScore(newAnswers, correctAnswers));
     }

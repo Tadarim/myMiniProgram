@@ -4,7 +4,6 @@ import { v4 as uuidv4 } from "uuid";
 import * as fs from "fs";
 import * as fsPromises from "fs/promises";
 import qiniu from "qiniu";
-import { pipeline } from "stream/promises";
 import dotenv from "dotenv";
 import { RowDataPacket } from "mysql2";
 

@@ -16,6 +16,8 @@ import courseServer from "./routes/course";
 import uploadRouter from "./routes/upload";
 import scheduleRoutes from "./routes/schedule";
 import exerciseRoutes from "./routes/exercise";
+import postRoutes from "./routes/post";
+
 const app = express();
 
 app.use(cors());
@@ -41,6 +43,7 @@ app.use("/api/schedule", scheduleRoutes);
 app.use("/api/upload", uploadRouter);
 app.use("/api/user", userServer);
 app.use("/api/exercise", exerciseRoutes);
+app.use("/api/posts", postRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
