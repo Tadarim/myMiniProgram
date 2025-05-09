@@ -286,24 +286,35 @@ const PostDetailPage: React.FC = () => {
           </Text>
         </View>
 
-        {postData.attachments && postData.attachments.filter(att => att.type === 'image').map(img => (
-          <Image className='post-image' src={img.url} mode='widthFix' key={img.url} />
-        ))}
+        {postData.attachments &&
+          postData.attachments
+            .filter((att) => att.type === 'image')
+            .map((img) => (
+              <Image
+                className='post-image'
+                src={img.url}
+                mode='widthFix'
+                key={img.url}
+              />
+            ))}
 
-        {postData.attachments && postData.attachments.filter(att => att.type === 'file').map(file => (
-          <View className='post-file-block' key={file.url}>
-            <View className='file-icon'>📄</View>
-            <View className='file-info'>
-              <Text className='file-name'>{file.name || '附件'}</Text>
-              <Text
-                className='file-link'
-                onClick={() => handleFileClick(file)}
-              >
-                查看/下载
-              </Text>
-            </View>
-          </View>
-        ))}
+        {postData.attachments &&
+          postData.attachments
+            .filter((att) => att.type === 'file')
+            .map((file) => (
+              <View className='post-file-block' key={file.url}>
+                <View className='file-icon'>📄</View>
+                <View className='file-info'>
+                  <Text className='file-name'>{file.name || '附件'}</Text>
+                  <Text
+                    className='file-link'
+                    onClick={() => handleFileClick(file)}
+                  >
+                    查看/下载
+                  </Text>
+                </View>
+              </View>
+            ))}
 
         <View className='action-bar'>
           <View className='action-item' onClick={handleLikeClick}>
@@ -354,7 +365,9 @@ const PostDetailPage: React.FC = () => {
             <View className='no-comments'>暂无评论，快来抢沙发吧！</View>
           )}
           {commentsLoading && <View className='loading'>加载中...</View>}
-          {!hasMore && <View className='no-more'>没有更多了</View>}
+          {!hasMore && postData.comments_count > 0 && (
+            <View className='no-more'>没有更多了</View>
+          )}
         </View>
       </ScrollView>
 

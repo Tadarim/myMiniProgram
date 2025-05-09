@@ -8,7 +8,8 @@ import {
   addComment,
   getPostDetail,
   deletePost,
-  uploadPostFile
+  uploadPostFile,
+  togglePostStatus
 } from "../controllers/post";
 import {
   verifyTokenMiddleware,
@@ -63,5 +64,13 @@ router.delete(
 
 // 上传图片/文件接口
 router.post("/upload", verifyTokenMiddleware(), setUserFromToken, uploadPostFile);
+
+// 切换帖子状态
+router.put(
+  "/:postId/status",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  togglePostStatus
+);
 
 export default router;

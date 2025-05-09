@@ -1,174 +1,228 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { ProTable, ProColumns, ActionType } from "@ant-design/pro-components";
-import { Button, message, Popconfirm, Modal, Space } from "antd";
+import { Button, message, Popconfirm, Modal, Space, Avatar, Tag } from "antd";
 import { DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import {
+  PostItem,
+  getPosts,
+  deletePost,
+  togglePostStatus,
+} from "../../api/post";
 
-export const waitTimePromise = async (time = 100) => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve(true);
-    }, time);
-  });
-};
-
-export const waitTime = async (time = 100) => {
-  await waitTimePromise(time);
-};
-
-interface PostItem {
-  id: number;
-  author: string;
-  content: string;
-  createdAt: string;
-  status: "public" | "private";
-  images?: string[];
+interface Attachment {
+  url: string;
+  type: string;
+  name: string;
 }
-
-const mockPosts: PostItem[] = [
-  {
-    id: 1,
-    author: "用户A",
-    content:
-      "这是第一条帖子，内容可能比较长，需要预览才能看到全部。这里省略了很多字...",
-    createdAt: "2023-10-27 10:00:00",
-    status: "public",
-    images: [
-      "https://images.unsplash.com/photo-1506744038136-46273834b3fb",
-      "https://images.unsplash.com/photo-1465101046530-73398c7f28ca",
-    ],
-  },
-  {
-    id: 2,
-    author: "用户B",
-    content: "今天天气不错，适合出去玩。这条是私密状态。",
-    createdAt: "2023-10-26 15:30:00",
-    status: "private",
-    images: [],
-  },
-  {
-    id: 3,
-    author: "用户C",
-    content: "需要审核的帖子内容。",
-    createdAt: "2023-10-28 09:00:00",
-    status: "private",
-    images: ["https://images.unsplash.com/photo-1519125323398-675f0ddb6308"],
-  },
-];
-
-const fetchPosts = async (params) => {
-  console.log("Fetching posts with params:", params);
-  await waitTime(500);
-
-  let filteredData = [...mockPosts];
-  if (params.content) {
-    filteredData = filteredData.filter((post) =>
-      post.content.includes(params.content)
-    );
-  }
-  if (params.author) {
-    filteredData = filteredData.filter((post) =>
-      post.author.includes(params.author)
-    );
-  }
-
-  if (params.status) {
-    filteredData = filteredData.filter((post) => post.status === params.status);
-  }
-
-  return { data: filteredData, success: true, total: filteredData.length };
-};
-
-const handleDeletePost = async (id: number) => {
-  console.log(`Deleting post with id: ${id}`);
-  await waitTime(500);
-
-  const index = mockPosts.findIndex((item) => item.id === id);
-  if (index > -1) {
-    mockPosts.splice(index, 1);
-  }
-
-  message.success("删除成功");
-  return true;
-};
-
-const handleToggleStatus = async (post: PostItem) => {
-  const newStatus = post.status === "public" ? "private" : "public";
-  console.log(`Toggling status for post ${post.id} to ${newStatus}`);
-  await waitTime(300);
-
-  const index = mockPosts.findIndex((item) => item.id === post.id);
-  if (index > -1) {
-    mockPosts[index].status = newStatus;
-  }
-
-  message.success(`状态已切换为 ${newStatus === "public" ? "公开" : "私密"}`);
-  return true;
-};
 
 const PostManagementPage: React.FC = () => {
   const actionRef = useRef<ActionType>();
-
+  const [loading, setLoading] = useState<boolean>(false);
+  const [allPosts, setAllPosts] = useState<PostItem[]>([]);
   const [isPreviewModalVisible, setIsPreviewModalVisible] =
     useState<boolean>(false);
   const [currentPost, setCurrentPost] = useState<PostItem | undefined>(
     undefined
   );
 
+  useEffect(() => {
+    fetchPosts();
+  }, []);
+
+  const fetchPosts = async () => {
+    setLoading(true);
+    try {
+      const response = await getPosts({
+        current: 1,
+        pageSize: 1000, // 获取所有数据用于前端搜索
+      });
+      if (response.success && response.data) {
+        setAllPosts(response.data);
+      }
+    } catch (error) {
+      message.error("获取帖子列表失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSearch = async (params: any) => {
+    try {
+      let filteredData = [...allPosts];
+
+      if (params.content) {
+        filteredData = filteredData.filter((item) =>
+          item.content.toLowerCase().includes(params.content.toLowerCase())
+        );
+      }
+
+      if (params.username) {
+        filteredData = filteredData.filter((item) =>
+          item.username.toLowerCase().includes(params.username.toLowerCase())
+        );
+      }
+
+      if (params.type) {
+        filteredData = filteredData.filter((item) => item.type === params.type);
+      }
+
+      if (params.tags) {
+        filteredData = filteredData.filter((item) => {
+          if (!item.tags) return false;
+          const postTags = item.tags
+            .split(",")
+            .map((tag: string) => tag.trim().toLowerCase());
+          const searchTags = params.tags
+            .split(",")
+            .map((tag: string) => tag.trim().toLowerCase());
+          return searchTags.some((tag: string) => postTags.includes(tag));
+        });
+      }
+
+      return {
+        data: filteredData,
+        success: true,
+        total: filteredData.length,
+      };
+    } catch (error) {
+      return {
+        data: [],
+        success: false,
+        total: 0,
+      };
+    }
+  };
+
+  const getFileIcon = (fileType: string): string => {
+    if (fileType === "image") return "🖼️";
+    if (fileType === "pdf") return "📄";
+    if (fileType === "doc" || fileType === "docx") return "📝";
+    if (fileType === "xls" || fileType === "xlsx") return "📊";
+    if (fileType === "ppt" || fileType === "pptx") return "📑";
+    if (fileType === "video") return "🎥";
+    if (fileType === "audio") return "🎵";
+    if (fileType === "zip" || fileType === "rar") return "📦";
+    return "📎";
+  };
+
   const columns: ProColumns<PostItem>[] = [
     { title: "ID", dataIndex: "id", key: "id", width: 80, search: false },
-    { title: "作者", dataIndex: "author", key: "author", width: 120 },
+    {
+      title: "作者",
+      dataIndex: "username",
+      key: "username",
+      width: 120,
+      render: (_, record) => (
+        <Space>
+          <Avatar src={record.avatar} size="small" />
+          {record.username}
+        </Space>
+      ),
+    },
     {
       title: "内容",
       dataIndex: "content",
       key: "content",
       ellipsis: true,
-      render: (_, record) => (
-        <div>
-          <div
-            style={{
-              marginBottom: record.images && record.images.length > 0 ? 8 : 0,
-            }}
-          >
-            {record.content}
-          </div>
-          {record.images && record.images.length > 0 && (
-            <div style={{ display: "flex", gap: 4 }}>
-              {record.images.slice(0, 3).map((img, idx) => (
-                <img
-                  key={idx}
-                  src={img}
-                  alt={`图片${idx + 1}`}
-                  style={{
-                    width: 40,
-                    height: 40,
-                    objectFit: "cover",
-                    borderRadius: 4,
-                    border: "1px solid #eee",
-                  }}
-                />
-              ))}
-              {record.images.length > 3 && (
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    background: "#f0f0f0",
-                    borderRadius: 4,
-                    border: "1px solid #eee",
-                    fontSize: 12,
-                    color: "#666",
-                  }}
-                >
-                  +{record.images.length - 3}
-                </div>
-              )}
+      render: (_, record) => {
+        const attachments = Array.isArray(record.attachments)
+          ? record.attachments
+          : JSON.parse(record.attachments || "[]");
+
+        return (
+          <div>
+            <div
+              style={{
+                marginBottom: attachments.length > 0 ? 8 : 0,
+              }}
+            >
+              {record.content}
             </div>
-          )}
-        </div>
-      ),
+            {attachments.length > 0 && (
+              <div style={{ display: "flex", gap: 4 }}>
+                {attachments.slice(0, 3).map((file: Attachment, idx: number) =>
+                  file.type === "image" ? (
+                    <img
+                      key={idx}
+                      src={file.url}
+                      alt={file.name}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        objectFit: "cover",
+                        borderRadius: 4,
+                        border: "1px solid #eee",
+                      }}
+                    />
+                  ) : (
+                    <div
+                      key={idx}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "#f0f0f0",
+                        borderRadius: 4,
+                        border: "1px solid #eee",
+                        fontSize: 12,
+                        color: "#666",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        padding: "0 4px",
+                      }}
+                      title={file.name}
+                    >
+                      {file.name?.split(".").pop()?.toUpperCase() || "FILE"}
+                    </div>
+                  )
+                )}
+                {attachments.length > 3 && (
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      background: "#f0f0f0",
+                      borderRadius: 4,
+                      border: "1px solid #eee",
+                      fontSize: 12,
+                      color: "#666",
+                    }}
+                  >
+                    +{attachments.length - 3}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      title: "标签",
+      dataIndex: "tags",
+      key: "tags",
+      width: 200,
+      search: {
+        transform: (value: string) => ({ tags: value }),
+      },
+      render: (_, record) => {
+        if (!record.tags) return null;
+        return (
+          <Space size={[0, 4]} wrap>
+            {record.tags.split(",").map((tag) => (
+              <Tag key={tag} color="blue">
+                {tag}
+              </Tag>
+            ))}
+          </Space>
+        );
+      },
     },
     {
       title: "状态",
@@ -179,13 +233,14 @@ const PostManagementPage: React.FC = () => {
         public: { text: "公开", status: "Success" },
         private: { text: "私密", status: "Default" },
       },
+      search: false,
       filters: true,
       onFilter: true,
     },
     {
       title: "发布时间",
-      dataIndex: "createdAt",
-      key: "createdAt",
+      dataIndex: "created_at",
+      key: "created_at",
       valueType: "dateTime",
       width: 180,
       search: false,
@@ -220,9 +275,17 @@ const PostManagementPage: React.FC = () => {
               record.status === "public" ? "私密" : "公开"
             }" 状态吗?`}
             onConfirm={async () => {
-              const success = await handleToggleStatus(record);
-              if (success && actionRef.current) {
-                actionRef.current.reload(); // 成功后刷新表格
+              try {
+                const newStatus = await togglePostStatus(record);
+                message.success(
+                  `状态已切换为 ${newStatus === "public" ? "公开" : "私密"}`
+                );
+                await fetchPosts(); // 先重新获取数据
+                actionRef.current?.reload(); // 然后刷新表格
+              } catch (error) {
+                message.error(
+                  error instanceof Error ? error.message : "状态切换失败"
+                );
               }
             }}
             okText="确定"
@@ -235,9 +298,15 @@ const PostManagementPage: React.FC = () => {
           <Popconfirm
             title="确定删除这条帖子吗？"
             onConfirm={async () => {
-              const success = await handleDeletePost(record.id);
-              if (success && actionRef.current) {
-                actionRef.current.reload(); // 删除成功后刷新表格
+              try {
+                await deletePost(record.id);
+                message.success("删除成功");
+                await fetchPosts(); // 重新获取数据
+                actionRef.current?.reload(); // 然后刷新表格
+              } catch (error) {
+                message.error(
+                  error instanceof Error ? error.message : "删除失败"
+                );
               }
             }}
             okText="确定"
@@ -258,18 +327,22 @@ const PostManagementPage: React.FC = () => {
         columns={columns}
         actionRef={actionRef}
         cardBordered
-        request={fetchPosts}
-        editable={false}
+        loading={loading}
+        request={handleSearch}
         rowKey="id"
         search={{
           labelWidth: "auto",
+        }}
+        pagination={{
+          defaultPageSize: 10,
+          showQuickJumper: true,
         }}
         headerTitle="帖子列表"
       />
 
       <Modal
         title="帖子内容预览"
-        visible={isPreviewModalVisible}
+        open={isPreviewModalVisible}
         onCancel={() => setIsPreviewModalVisible(false)}
         footer={null}
         width={600}
@@ -281,14 +354,31 @@ const PostManagementPage: React.FC = () => {
               <strong>ID:</strong> {currentPost.id}
             </p>
             <p>
-              <strong>作者:</strong> {currentPost.author}
+              <strong>作者:</strong>{" "}
+              <Space>
+                <Avatar src={currentPost.avatar} size="small" />
+                {currentPost.username}
+              </Space>
             </p>
             <p>
-              <strong>发布时间:</strong> {currentPost.createdAt}
+              <strong>发布时间:</strong> {currentPost.created_at}
+            </p>
+            <p>
+              <strong>更新时间:</strong> {currentPost.updated_at}
             </p>
             <p>
               <strong>状态:</strong>{" "}
               {currentPost.status === "public" ? "公开" : "私密"}
+            </p>
+            <p>
+              <strong>标签:</strong>{" "}
+              <Space size={[0, 4]} wrap>
+                {currentPost.tags.split(",").map((tag) => (
+                  <Tag key={tag} color="blue">
+                    {tag}
+                  </Tag>
+                ))}
+              </Space>
             </p>
             <p>
               <strong>内容:</strong>
@@ -306,9 +396,9 @@ const PostManagementPage: React.FC = () => {
             >
               {currentPost.content}
             </div>
-            {currentPost.images && currentPost.images.length > 0 && (
+            {currentPost.attachments && (
               <div style={{ marginTop: 16 }}>
-                <strong>图片：</strong>
+                <strong>附件：</strong>
                 <div
                   style={{
                     display: "flex",
@@ -317,20 +407,63 @@ const PostManagementPage: React.FC = () => {
                     marginTop: 8,
                   }}
                 >
-                  {currentPost.images.map((img, idx) => (
-                    <img
-                      key={idx}
-                      src={img}
-                      alt={`帖子图片${idx + 1}`}
-                      style={{
-                        width: 100,
-                        height: 100,
-                        objectFit: "cover",
-                        borderRadius: 4,
-                        border: "1px solid #eee",
-                      }}
-                    />
-                  ))}
+                  {(Array.isArray(currentPost.attachments)
+                    ? currentPost.attachments
+                    : JSON.parse(currentPost.attachments || "[]")
+                  ).map((file: Attachment, idx: number) =>
+                    file.type === "image" ? (
+                      <img
+                        key={idx}
+                        src={file.url}
+                        alt={file.name}
+                        style={{
+                          width: 100,
+                          height: 100,
+                          objectFit: "cover",
+                          borderRadius: 4,
+                          border: "1px solid #eee",
+                        }}
+                      />
+                    ) : (
+                      <a
+                        key={idx}
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          width: 100,
+                          height: 100,
+                          background: "#f0f0f0",
+                          borderRadius: 4,
+                          border: "1px solid #eee",
+                          textDecoration: "none",
+                          color: "#666",
+                          padding: "8px",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div style={{ fontSize: 24, marginBottom: 4 }}>
+                          {getFileIcon(file.type)}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 12,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            width: "100%",
+                          }}
+                          title={file.name}
+                        >
+                          {file.name || "未命名文件"}
+                        </div>
+                      </a>
+                    )
+                  )}
                 </div>
               </div>
             )}
@@ -340,5 +473,4 @@ const PostManagementPage: React.FC = () => {
     </>
   );
 };
-
 export default PostManagementPage;

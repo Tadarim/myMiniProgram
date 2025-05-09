@@ -1,21 +1,16 @@
 import jwt from "jsonwebtoken";
 
-export interface JWTPayload {
+const JWT_SECRET = process.env.JWT_SECRET || "xuxinyu.tadarim";
+
+export interface TokenPayload {
   id: number;
   username: string;
-  role: "user" | "admin";
+  role: string;
 }
 
 /* 生成用户身份凭证token */
-export const generateToken = (payload: JWTPayload): string => {
-  const secret = process.env.JWT_SECRET || "xuxinyu.tadarim";
-
-  const token = jwt.sign(payload, secret, {
-    expiresIn: "7d",
-    algorithm: "HS256",
-  });
-
-  return token;
+export const generateToken = (payload: TokenPayload): string => {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: "7d" });
 };
 
 export const generateUserToken = (userId: number): string => {
@@ -27,19 +22,10 @@ export const generateUserToken = (userId: number): string => {
 };
 
 /* 解密token获取信息 */
-export const verifyToken = (token: string): JWTPayload => {
-  const secret = process.env.JWT_SECRET || "xuxinyu.tadarim";
-  console.log("Verifying token:", token);
-  console.log("Using secret:", secret);
-
+export const verifyToken = (token: string): TokenPayload | null => {
   try {
-    const decoded = jwt.verify(token, secret, {
-      algorithms: ["HS256"],
-    }) as JWTPayload;
-    console.log("Token verified successfully:", decoded);
-    return decoded;
+    return jwt.verify(token, JWT_SECRET) as TokenPayload;
   } catch (error) {
-    console.error("Token verification failed:", error);
-    throw error;
+    return null;
   }
 };

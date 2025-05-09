@@ -19,8 +19,12 @@
 
   &.self {
     align-items: flex-end;
+
     .message-item {
-      flex-direction: row-reverse;
+      flex-direction: row-reverse !important;
+    }
+    .avatar {
+      margin-right: 0;
     }
     .message-content-area {
       align-items: flex-end;
@@ -34,14 +38,15 @@
         order: 1;
         margin-left: 5px;
         margin-right: 0;
+        text-align: right;
       }
       .time {
         order: 0;
       }
     }
     .message-bubble {
-      background-color: #95ec69;
-      border-radius: 8px 0 8px 8px;
+      background-color: #95ec69 !important;
+      border-radius: 12px 0 12px 12px !important;
       .text {
         color: #000;
       }
@@ -51,7 +56,10 @@
   &.other {
     align-items: flex-start;
     .message-item {
-      flex-direction: row;
+      flex-direction: row !important;
+    }
+    .avatar {
+      margin-left: 0;
     }
     .message-content-area {
       align-items: flex-start;
@@ -63,12 +71,13 @@
       .name {
         color: #888;
         margin-right: 8px;
+        text-align: left;
       }
     }
     .message-bubble {
-      background-color: #ffffff;
+      background-color: #fff !important;
       margin-right: 0;
-      border-radius: 0 8px 8px 8px;
+      border-radius: 0 12px 12px 12px !important;
       .text {
         color: #333;
       }
@@ -348,4 +357,11 @@
     font-size: 12px;
     color: #666;
   }
+}
+
+.message-item.self {
+  flex-direction: row-reverse !important;
+}
+.message-item.other {
+  flex-direction: row !important;
 }

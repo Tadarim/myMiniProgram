@@ -6,6 +6,7 @@ const request = axios.create({
   timeout: 10000,
 });
 
+// 请求拦截器
 request.interceptors.request.use(
   (config) => {
     const userInfo = JSON.parse(localStorage.getItem("userInfo") || "{}");
@@ -20,11 +21,14 @@ request.interceptors.request.use(
   }
 );
 
+// 响应拦截器
 request.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.data?.error === "token out of date") {
+    if (error.response?.status === 401) {
+      // 清除登录状态
       localStorage.removeItem("userInfo");
+      // 跳转到登录页
       window.location.href = "/login";
       message.error("登录已过期，请重新登录");
     } else {

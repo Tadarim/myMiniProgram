@@ -14,3 +14,12 @@ export interface WeChatLoginResponse {
   token: string;
   user: Omit<UserInfo, 'password'>;
 }
+
+export interface LoginResponse {
+  success: boolean;
+  data: {
+    token: string;
+    refreshToken: string;
+    user: UserInfo;
+  };
+}

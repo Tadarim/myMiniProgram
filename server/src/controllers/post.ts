@@ -8,6 +8,8 @@ import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import fs from "fs";
 import * as fsPromises from "fs/promises";
+// @ts-ignore
+const Segment = require("segmentit");
 
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
@@ -22,30 +24,101 @@ const uploadToken = putPolicy.uploadToken(mac);
 function getMimeType(fileName: string): string {
   const ext = path.extname(fileName).toLowerCase();
   switch (ext) {
-    case '.pdf': return 'application/pdf';
-    case '.doc': return 'application/msword';
-    case '.docx': return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    case '.ppt': return 'application/vnd.ms-powerpoint';
-    case '.pptx': return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-    case '.txt': return 'text/plain';
-    case '.jpg':
-    case '.jpeg': return 'image/jpeg';
-    case '.png': return 'image/png';
-    case '.gif': return 'image/gif';
-    case '.mp4': return 'video/mp4';
-    case '.mp3': return 'audio/mpeg';
-    default: return 'application/octet-stream';
+    case ".pdf":
+      return "application/pdf";
+    case ".doc":
+      return "application/msword";
+    case ".docx":
+      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    case ".ppt":
+      return "application/vnd.ms-powerpoint";
+    case ".pptx":
+      return "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+    case ".txt":
+      return "text/plain";
+    case ".jpg":
+    case ".jpeg":
+      return "image/jpeg";
+    case ".png":
+      return "image/png";
+    case ".gif":
+      return "image/gif";
+    case ".mp4":
+      return "video/mp4";
+    case ".mp3":
+      return "audio/mpeg";
+    default:
+      return "application/octet-stream";
   }
 }
 
-async function uploadToQiniu(filePath: string, fileName: string): Promise<{ url: string; key: string }> {
+function getFileType(fileName: string): string {
+  const ext = path.extname(fileName).toLowerCase();
+  switch (ext) {
+    case ".pdf":
+      return "pdf";
+    case ".doc":
+    case ".docx":
+      return "doc";
+    case ".ppt":
+    case ".pptx":
+      return "ppt";
+    case ".txt":
+      return "txt";
+    case ".jpg":
+    case ".jpeg":
+    case ".png":
+    case ".gif":
+      return "image";
+    case ".mp4":
+    case ".avi":
+    case ".mov":
+      return "video";
+    case ".mp3":
+    case ".wav":
+      return "audio";
+    default:
+      return "other";
+  }
+}
+
+async function uploadToQiniu(
+  filePath: string,
+  fileName: string
+): Promise<{ url: string; fileName: string; fileType: string }> {
   const key = `${uuidv4()}${path.extname(fileName)}`;
+  console.log("准备上传到七牛云:", key);
+
+  if (!domain) {
+    throw new Error("七牛云域名未配置");
+  }
+
+  if (!accessKey || !secretKey) {
+    throw new Error("七牛云密钥未配置");
+  }
+
+  // 检查文件是否存在
+  if (!fs.existsSync(filePath)) {
+    throw new Error("文件不存在");
+  }
+
+  // 检查文件大小
+  const stats = fs.statSync(filePath);
+  console.log("上传文件大小:", stats.size, "bytes");
+  if (stats.size === 0) {
+    throw new Error("文件大小为0");
+  }
+
   const config = new qiniu.conf.Config();
-  config.zone = qiniu.zone.Zone_z1;
+  config.zone = qiniu.zone.Zone_z1; // 华北区域
   config.useCdnDomain = true;
   const formUploader = new qiniu.form_up.FormUploader(config);
   const putExtra = new qiniu.form_up.PutExtra();
-  putExtra.mimeType = getMimeType(fileName);
+
+  // 设置文件类型
+  const mimeType = getMimeType(fileName);
+  putExtra.mimeType = mimeType;
+
   return new Promise((resolve, reject) => {
     formUploader.putFile(
       uploadToken,
@@ -53,13 +126,45 @@ async function uploadToQiniu(filePath: string, fileName: string): Promise<{ url:
       filePath,
       putExtra,
       (err, body, info) => {
-        if (err) return reject(err);
-        if (info.statusCode !== 200) return reject(new Error("七牛云上传失败"));
-        if (!domain) {
-          throw new Error("七牛云 domain 未配置");
+        if (err) {
+          console.error("七牛云上传错误:", err);
+          reject(err);
+          return;
         }
-        const url = domain.replace(/\/$/, '') + '/' + key;
-        resolve({ url, key });
+        if (info.statusCode !== 200) {
+          console.error("七牛云上传失败:", info);
+          reject(new Error("七牛云上传失败"));
+          return;
+        }
+
+        console.log("七牛云上传成功:", body);
+        console.log("上传响应信息:", info);
+
+        // 生成私有下载链接
+        const deadline = Math.floor(Date.now() / 1000) + 3600; // 1小时有效期
+        const bucketManager = new qiniu.rs.BucketManager(mac, config);
+
+        // 确保域名格式正确s
+        const baseUrl = domain.startsWith("http") ? domain : `http://${domain}`;
+
+        // 生成私有下载链接
+        const encodedFileName = encodeURIComponent(fileName);
+        const privateDownloadUrl =
+          bucketManager.privateDownloadUrl(baseUrl, key, deadline) +
+          `&attname=${encodedFileName}`;
+
+        console.log("生成的下载链接:", privateDownloadUrl);
+        console.log("使用的域名:", baseUrl);
+        console.log("文件key:", key);
+        console.log("MIME类型:", mimeType);
+        console.log("原始文件名:", fileName);
+        console.log("编码后的文件名:", encodedFileName);
+
+        resolve({
+          url: privateDownloadUrl,
+          fileName: fileName,
+          fileType: getFileType(fileName),
+        });
       }
     );
   });
@@ -70,6 +175,9 @@ export const getPosts = async (req: Request, res: Response) => {
   try {
     const { page = 1, pageSize = 10, type, keyword } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
+    const auth = req.auth as { id: number; role: "admin" | "user" } | undefined;
+    const userId = auth?.id;
+    const isAdmin = auth?.role === "admin";
 
     let sql = `
       SELECT 
@@ -87,17 +195,23 @@ export const getPosts = async (req: Request, res: Response) => {
       LEFT JOIN users u ON p.author_id = u.id
       LEFT JOIN post_tags pt ON p.id = pt.post_id
       LEFT JOIN tags t ON pt.tag_id = t.id
-      WHERE 1=1
     `;
-    const params: any[] = [req.user?.id, req.user?.id];
+    const params: any[] = [userId, userId];
 
-    if (type && type !== 'all') {
-      sql += " AND p.type = ?";
+    // 如果不是管理员，只返回公开的帖子
+    if (!isAdmin) {
+      sql += " WHERE p.status = 'public'";
+    }
+
+    if (type && type !== "all") {
+      sql += isAdmin ? " WHERE " : " AND ";
+      sql += "p.type = ?";
       params.push(type);
     }
 
     if (keyword) {
-      sql += " AND (p.content LIKE ? OR u.username LIKE ?)";
+      sql += isAdmin && !type ? " WHERE " : " AND ";
+      sql += "(p.content LIKE ? OR u.username LIKE ?)";
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
 
@@ -107,9 +221,9 @@ export const getPosts = async (req: Request, res: Response) => {
     const [rows] = await pool.query<RowDataPacket[]>(sql, params);
 
     // 格式化时间
-    const formattedRows = rows.map(row => ({
+    const formattedRows = rows.map((row) => ({
       ...row,
-      time_ago: formatTimeAgo(row.time_ago)
+      time_ago: formatTimeAgo(row.time_ago),
     }));
 
     // 获取总数
@@ -117,21 +231,30 @@ export const getPosts = async (req: Request, res: Response) => {
       SELECT COUNT(DISTINCT p.id) as total 
       FROM posts p
       LEFT JOIN users u ON p.author_id = u.id
-      WHERE 1=1
     `;
     const countParams: any[] = [];
 
-    if (type && type !== 'all') {
-      countSql += " AND p.type = ?";
+    // 如果不是管理员，只统计公开的帖子
+    if (!isAdmin) {
+      countSql += " WHERE p.status = 'public'";
+    }
+
+    if (type && type !== "all") {
+      countSql += isAdmin ? " WHERE " : " AND ";
+      countSql += "p.type = ?";
       countParams.push(type);
     }
 
     if (keyword) {
-      countSql += " AND (p.content LIKE ? OR u.username LIKE ?)";
+      countSql += isAdmin && !type ? " WHERE " : " AND ";
+      countSql += "(p.content LIKE ? OR u.username LIKE ?)";
       countParams.push(`%${keyword}%`, `%${keyword}%`);
     }
 
-    const [countRows] = await pool.query<RowDataPacket[]>(countSql, countParams);
+    const [countRows] = await pool.query<RowDataPacket[]>(
+      countSql,
+      countParams
+    );
     const total = countRows[0].total;
 
     res.json({
@@ -154,7 +277,13 @@ export const getPosts = async (req: Request, res: Response) => {
 // 创建帖子
 export const createPost = async (req: Request, res: Response) => {
   try {
-    const { content, attachments, type, tags } = req.body;
+    const {
+      content,
+      type,
+      tags: manualTags,
+      attachments,
+      status = "public",
+    } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
@@ -173,6 +302,11 @@ export const createPost = async (req: Request, res: Response) => {
       });
     }
 
+    // 自动提取标签
+    const autoTags = extractTagsFromContent(content);
+    // 合并手动添加的标签和自动提取的标签
+    const tags = [...new Set([...(manualTags || []), ...autoTags])];
+
     // 开始事务
     const connection = await pool.getConnection();
     await connection.beginTransaction();
@@ -180,8 +314,8 @@ export const createPost = async (req: Request, res: Response) => {
     try {
       // 插入帖子，支持多个附件
       const [result] = await connection.query<ResultSetHeader>(
-        "INSERT INTO posts (author_id, content, attachments, type) VALUES (?, ?, ?, ?)",
-        [userId, content, JSON.stringify(attachments || []), type]
+        "INSERT INTO posts (author_id, content, attachments, type, status) VALUES (?, ?, ?, ?, ?)",
+        [userId, content, JSON.stringify(attachments || []), type, status]
       );
       const postId = result.insertId;
 
@@ -231,10 +365,20 @@ export const createPost = async (req: Request, res: Response) => {
         [postId]
       );
 
+      // 解析 attachments
+      let parsedAttachments = [];
+      try {
+        // MySQL 的 JSON 类型会自动解析
+        parsedAttachments = newPost[0].attachments || [];
+      } catch (error) {
+        console.error("解析 attachments 失败:", error);
+        parsedAttachments = attachments || []; // 如果解析失败，使用传入的 attachments
+      }
+
       const formattedPost = {
         ...newPost[0],
-        attachments: JSON.parse(newPost[0].attachments || '[]'),
-        time_ago: formatTimeAgo(newPost[0].time_ago)
+        attachments: parsedAttachments,
+        time_ago: formatTimeAgo(newPost[0].time_ago),
       };
 
       res.json({
@@ -420,7 +564,7 @@ export const getPostDetail = async (req: Request, res: Response) => {
     // 格式化时间
     const formattedPost = {
       ...(posts as any[])[0],
-      time_ago: formatTimeAgo((posts as any[])[0].time_ago)
+      time_ago: formatTimeAgo((posts as any[])[0].time_ago),
     };
 
     // 获取评论列表
@@ -440,14 +584,14 @@ export const getPostDetail = async (req: Request, res: Response) => {
     );
 
     // 格式化评论时间
-    const formattedComments = (comments as any[]).map(comment => ({
+    const formattedComments = (comments as any[]).map((comment) => ({
       ...comment,
-      comment_time: formatTimeAgo(comment.comment_time)
+      comment_time: formatTimeAgo(comment.comment_time),
     }));
 
     const postData = {
       ...formattedPost,
-      comments: formattedComments || []
+      comments: formattedComments || [],
     };
 
     res.json({
@@ -497,13 +641,13 @@ export const getComments = async (req: Request, res: Response) => {
     const total = (countResult as any[])[0].total;
 
     // 格式化评论结构和时间
-    const formattedComments = (comments as any[]).map(comment => ({
+    const formattedComments = (comments as any[]).map((comment) => ({
       id: comment.id,
       content: comment.content,
       author_id: comment.author_id,
       username: comment.username,
       avatar: comment.avatar,
-      time_ago: formatTimeAgo(comment.time_ago)
+      time_ago: formatTimeAgo(comment.time_ago),
     }));
 
     res.json({
@@ -572,7 +716,7 @@ export const addComment = async (req: Request, res: Response) => {
       author_id: (newComment as any[])[0].author_id,
       username: (newComment as any[])[0].username,
       avatar: (newComment as any[])[0].avatar,
-      time_ago: formatTimeAgo((newComment as any[])[0].time_ago)
+      time_ago: formatTimeAgo((newComment as any[])[0].time_ago),
     };
 
     res.json({
@@ -595,7 +739,9 @@ export const addComment = async (req: Request, res: Response) => {
 export const deletePost = async (req: Request, res: Response) => {
   try {
     const { postId } = req.params;
-    const userId = req.user?.id;
+    const auth = req.auth as { id: number; role: "admin" | "user" } | undefined;
+    const userId = auth?.id;
+    const isAdmin = auth?.role === "admin";
 
     if (!userId) {
       return res.status(401).json({
@@ -605,7 +751,7 @@ export const deletePost = async (req: Request, res: Response) => {
       });
     }
 
-    // 检查帖子是否存在且是否为当前用户发布
+    // 检查帖子是否存在
     const [post] = await pool.query<RowDataPacket[]>(
       "SELECT author_id FROM posts WHERE id = ?",
       [postId]
@@ -619,7 +765,8 @@ export const deletePost = async (req: Request, res: Response) => {
       });
     }
 
-    if (post[0].author_id !== userId) {
+    // 只有管理员或帖子作者可以删除
+    if (!isAdmin && post[0].author_id !== userId) {
       return res.status(403).json({
         code: 403,
         success: false,
@@ -633,34 +780,27 @@ export const deletePost = async (req: Request, res: Response) => {
 
     try {
       // 删除相关的点赞记录
-      await connection.query(
-        "DELETE FROM post_likes WHERE post_id = ?",
-        [postId]
-      );
+      await connection.query("DELETE FROM post_likes WHERE post_id = ?", [
+        postId,
+      ]);
 
       // 删除相关的收藏记录
-      await connection.query(
-        "DELETE FROM post_collections WHERE post_id = ?",
-        [postId]
-      );
+      await connection.query("DELETE FROM post_collections WHERE post_id = ?", [
+        postId,
+      ]);
 
       // 删除相关的评论
-      await connection.query(
-        "DELETE FROM comments WHERE post_id = ?",
-        [postId]
-      );
+      await connection.query("DELETE FROM comments WHERE post_id = ?", [
+        postId,
+      ]);
 
       // 删除帖子-标签关联
-      await connection.query(
-        "DELETE FROM post_tags WHERE post_id = ?",
-        [postId]
-      );
+      await connection.query("DELETE FROM post_tags WHERE post_id = ?", [
+        postId,
+      ]);
 
       // 删除帖子
-      await connection.query(
-        "DELETE FROM posts WHERE id = ?",
-        [postId]
-      );
+      await connection.query("DELETE FROM posts WHERE id = ?", [postId]);
 
       await connection.commit();
 
@@ -688,18 +828,312 @@ export const deletePost = async (req: Request, res: Response) => {
 // 上传图片/文件接口
 export const uploadPostFile = async (req: Request, res: Response) => {
   try {
+    console.log("请求体:", req.body);
+    console.log("请求文件:", req.files);
+    console.log("请求头:", req.headers);
+
     if (!req.files || !req.files.file) {
+      console.error("未找到上传的文件，请求体:", req.body);
       return res.status(400).json({ error: "未找到上传的文件" });
     }
-    const file = Array.isArray(req.files.file) ? req.files.file[0] : req.files.file;
+
+    const file = Array.isArray(req.files.file)
+      ? req.files.file[0]
+      : req.files.file;
     const fileName = req.body.fileName || file.name;
+
+    console.log("收到上传请求:", {
+      fileName,
+      fileSize: file.size,
+      mimeType: file.mimetype,
+      path: file.tempFilePath,
+    });
+
+    // 检查文件是否存在
     if (!fs.existsSync(file.tempFilePath)) {
+      console.error("临时文件不存在:", file.tempFilePath);
       return res.status(400).json({ error: "临时文件不存在" });
     }
+
+    // 检查文件大小
+    const stats = fs.statSync(file.tempFilePath);
+    console.log("文件实际大小:", stats.size, "bytes");
+    if (stats.size === 0) {
+      console.error("文件大小为0:", file.tempFilePath);
+      return res.status(400).json({ error: "文件大小为0" });
+    }
+
+    // 上传到七牛云，使用 uploadToQiniu 函数获取带有访问 token 的 URL
+    console.log("开始上传到七牛云...");
     const qiniuResult = await uploadToQiniu(file.tempFilePath, fileName);
-    try { await fsPromises.unlink(file.tempFilePath); } catch {}
-    res.json({ success: true, data: { url: qiniuResult.url, key: qiniuResult.key } });
+    console.log("七牛云上传结果:", qiniuResult);
+
+    // 删除临时文件
+    try {
+      await fsPromises.unlink(file.tempFilePath);
+      console.log("临时文件已删除:", file.tempFilePath);
+    } catch (unlinkError) {
+      console.error("删除临时文件失败:", unlinkError);
+    }
+
+    // 返回完整的信息，包括带有访问 token 的 URL
+    res.json({
+      success: true,
+      data: {
+        url: qiniuResult.url,
+        fileName: fileName,
+        fileType: getMimeType(fileName),
+      },
+    });
   } catch (error) {
-    res.status(500).json({ success: false, error: "上传失败", message: error instanceof Error ? error.message : "未知错误" });
+    console.error("上传文件失败:", error);
+    res.status(500).json({
+      success: false,
+      error: "上传文件失败",
+      message: error instanceof Error ? error.message : "未知错误",
+    });
   }
-}; 
+};
+
+// 改进的标签提取函数
+function extractTagsFromContent(content: string): string[] {
+  const tags: string[] = [];
+
+  // 定义标签映射规则
+  const tagRules: Record<string, string[]> = {
+    学习问题: [
+      // 问题相关
+      "问题",
+      "不会",
+      "不懂",
+      "请教",
+      "求助",
+      "疑问",
+      "困惑",
+      "难题",
+      "困难",
+      // 学习相关
+      "学习",
+      "课程",
+      "作业",
+      "考试",
+      "题目",
+      "答案",
+      "解析",
+      "讲解",
+      "复习",
+      "预习",
+      // 具体学科
+      "数学",
+      "物理",
+      "化学",
+      "生物",
+      "英语",
+      "语文",
+      "历史",
+      "地理",
+      "政治",
+      // 学习状态
+      "笔记",
+      "重点",
+      "难点",
+      "考点",
+      "知识点",
+      "概念",
+      "公式",
+      "定理",
+      "原理",
+      // 学习方式
+      "自学",
+      "补课",
+      "辅导",
+      "培训",
+      "讲座",
+      "课程",
+      "教材",
+      "课本",
+    ],
+    组队邀请: [
+      // 组队相关
+      "组队",
+      "队友",
+      "一起",
+      "合作",
+      "项目",
+      "团队",
+      "招募",
+      "组员",
+      // 角色相关
+      "伙伴",
+      "搭档",
+      "协作",
+      "分工",
+      "配合",
+      "成员",
+      "队员",
+      "同学",
+      // 活动相关
+      "比赛",
+      "竞赛",
+      "活动",
+      "项目",
+      "课题",
+      "实验",
+      "研究",
+      "开发",
+      // 技能相关
+      "编程",
+      "设计",
+      "写作",
+      "翻译",
+      "策划",
+      "运营",
+      "管理",
+      "组织",
+      // 时间相关
+      "长期",
+      "短期",
+      "临时",
+      "兼职",
+      "全职",
+      "课余",
+      "假期",
+    ],
+    资源共享: [
+      // 资源类型
+      "资源",
+      "分享",
+      "资料",
+      "下载",
+      "链接",
+      "文件",
+      "文档",
+      "课件",
+      // 学习资源
+      "讲义",
+      "笔记",
+      "题库",
+      "真题",
+      "答案",
+      "解析",
+      "教材",
+      "课本",
+      // 工具资源
+      "软件",
+      "工具",
+      "插件",
+      "模板",
+      "素材",
+      "代码",
+      "脚本",
+      // 媒体资源
+      "视频",
+      "音频",
+      "图片",
+      "照片",
+      "录音",
+      "录像",
+      "直播",
+      // 其他资源
+      "电子书",
+      "论文",
+      "报告",
+      "数据",
+      "统计",
+      "分析",
+    ],
+    其他: [
+      "其他",
+      "其他问题",
+      "其他话题",
+      "闲聊",
+      "讨论",
+      "交流",
+      "分享",
+      "建议",
+      "意见",
+      "反馈",
+      "咨询",
+      "求助",
+      "帮助",
+    ],
+  };
+
+  // 根据规则匹配标签
+  for (const [tag, keywords] of Object.entries(tagRules)) {
+    // 检查内容中是否包含关键词
+    const hasKeyword = keywords.some((keyword) => content.includes(keyword));
+    if (hasKeyword) {
+      tags.push(tag);
+    }
+  }
+
+  // 如果没有匹配到任何标签，添加"其他"标签
+  if (tags.length === 0) {
+    tags.push("其他");
+  }
+
+  return tags;
+}
+
+// 切换帖子状态
+export const togglePostStatus = async (req: Request, res: Response) => {
+  try {
+    const { postId } = req.params;
+    const auth = req.auth as { id: number; role: "admin" | "user" } | undefined;
+    const userId = auth?.id;
+    const isAdmin = auth?.role === "admin";
+
+    if (!userId) {
+      return res.status(401).json({
+        code: 401,
+        success: false,
+        message: "请先登录",
+      });
+    }
+
+    // 检查帖子是否存在
+    const [post] = await pool.query<RowDataPacket[]>(
+      "SELECT author_id, status FROM posts WHERE id = ?",
+      [postId]
+    );
+
+    if (!post.length) {
+      return res.status(404).json({
+        code: 404,
+        success: false,
+        message: "帖子不存在",
+      });
+    }
+
+    if (!isAdmin) {
+      return res.status(403).json({
+        code: 403,
+        success: false,
+        message: "无权修改此帖子",
+      });
+    }
+
+    const newStatus = post[0].status === "public" ? "private" : "public";
+    await pool.query("UPDATE posts SET status = ? WHERE id = ?", [
+      newStatus,
+      postId,
+    ]);
+
+    res.json({
+      code: 200,
+      success: true,
+      data: {
+        status: newStatus,
+      },
+      message: `状态已切换为${newStatus === "public" ? "公开" : "私密"}`,
+    });
+  } catch (error) {
+    console.error("切换帖子状态失败:", error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: "服务器错误",
+    });
+  }
+};

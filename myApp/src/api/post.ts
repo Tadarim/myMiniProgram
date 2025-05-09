@@ -142,8 +142,8 @@ export const toggleCollection = async (postId: number) => {
 export const getComments = async (
   postId: number,
   params: {
-    page: number;
-    pageSize: number;
+  page: number;
+  pageSize: number;
   }
 ) => {
   return request<CommentListResponse>({

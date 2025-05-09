@@ -105,13 +105,13 @@ const ForumPage: React.FC = () => {
     setIsPopupShow(true);
   };
 
-  const publishHandler = async ({ content, image, type, tags }) => {
+  const publishHandler = async ({ content, type, tags, attachments }) => {
     try {
       const response = await createPost({
         content,
         type,
         tags,
-        attachments: image?.map(img => ({ url: img.url, type: 'image', name: img.name || '' }))
+        attachments
       });
 
       setPosts((prev) => [response.data, ...prev]);
@@ -180,6 +180,7 @@ const ForumPage: React.FC = () => {
       </View>
 
       <PopupRender
+        key={isPopupShow ? 'open' : 'closed'}
         visible={isPopupShow}
         onPublish={publishHandler}
         onClose={() => setIsPopupShow(false)}

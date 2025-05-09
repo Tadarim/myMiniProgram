@@ -10,6 +10,7 @@ import {
 } from '@nutui/icons-react-taro';
 import { FC, useState, useEffect } from 'react';
 
+import { getChatMessages, sendMessage, ChatMessage } from '@/api/chat';
 import NavigationBar from '@/components/navigationBar';
 
 import './index.less';
@@ -115,86 +116,55 @@ const EMOJI_LIST = [
 
 const ChatRoom: FC = () => {
   const router = useRouter();
+  const { id: sessionId, targetId, name, avatar } = router.params;
 
   const [inputValue, setInputValue] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
-
   const [showExtraPanel, setShowExtraPanel] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 1,
-      type: 'text',
-      content: '123',
-      time: '12:24',
-      isSelf: false,
-      avatar: 'https://picsum.photos/seed/userA/80/80',
-      name: 'BB小天使'
-    },
-    {
-      id: 2,
-      type: 'text',
-      content: '啊啊啊',
-      time: '12:24',
-      isSelf: false,
-      avatar: 'https://picsum.photos/seed/userA/80/80',
-      name: 'BB小天使'
-    },
-    {
-      id: 3,
-      type: 'text',
-      content: '123',
-      time: '13:41',
-      isSelf: false,
-      avatar: 'https://picsum.photos/seed/userA/80/80',
-      name: 'BB小天使'
-    },
-    {
-      id: 4,
-      type: 'text',
-      content: '嘿嘿',
-      time: '13:55',
-      isSelf: false,
-      avatar: 'https://picsum.photos/seed/userA/80/80',
-      name: 'BB小天使'
-    },
-    {
-      id: 5,
-      type: 'text',
-      content: '爱我打我打我',
-      time: '14:05',
-      isSelf: false,
-      avatar: 'https://picsum.photos/seed/userA/80/80',
-      name: 'BB小天使'
-    },
-    {
-      id: 6,
-      type: 'text',
-      content: 'aahehih13123',
-      time: '14:12',
-      isSelf: true,
-      avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-      name: 'test'
-    },
-    {
-      id: 7,
-      type: 'text',
-      content: '123',
-      time: '15:07',
-      isSelf: false,
-      avatar: 'https://picsum.photos/seed/userA/80/80',
-      name: 'BB小天使'
-    },
-    {
-      id: 8,
-      type: 'text',
-      content: '测试测试!',
-      time: '23:23',
-      isSelf: false,
-      avatar: 'https://picsum.photos/seed/userA/80/80',
-      name: 'BB小天使'
-    }
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
+
+  const fetchMessages = async () => {
+    try {
+      setLoading(true);
+      const res = await getChatMessages(Number(sessionId));
+      if (res.statusCode === 200 && res.data.code === 200) {
+        const formattedMessages = res.data.data.map((msg: ChatMessage) => ({
+          id: msg.id,
+          type: msg.type,
+          content: msg.content,
+          time: new Date(msg.created_at).toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          isSelf: msg.sender_id === Number(Taro.getStorageSync('userInfo').id),
+          avatar: msg.sender_avatar,
+          name: msg.sender_name,
+          fileName: msg.file_name,
+          fileSize: msg.file_size
+        }));
+        setMessages(formattedMessages);
+      } else {
+        Taro.showToast({
+          title: res.data.message || '获取消息失败',
+          icon: 'none'
+        });
+      }
+    } catch (error) {
+      console.error('获取消息失败:', error);
+      Taro.showToast({
+        title: '获取消息失败',
+        icon: 'none'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMessages();
+  }, [sessionId]);
 
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -268,26 +238,33 @@ const ChatRoom: FC = () => {
     );
   };
 
-  const handleSend = () => {
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
-    const newMessage: Message = {
-      id: Date.now(),
-      type: 'text',
-      content: inputValue,
-      time: new Date().toLocaleTimeString('zh-CN', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      isSelf: true,
-      avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-      name: 'test'
-    };
-    setMessages((prev) => [...prev, newMessage]);
-    setInputValue('');
-    setShowEmoji(false);
-    setShowExtraPanel(false);
-    scrollToBottom();
+
+    try {
+      const res = await sendMessage({
+        sessionId: Number(sessionId),
+        content: inputValue,
+        type: 'text'
+      });
+
+      if (res.statusCode === 200 && res.data.code === 200) {
+        // 发送成功后重新获取消息列表
+        fetchMessages();
+        setInputValue('');
+      } else {
+        Taro.showToast({
+          title: res.data.message || '发送失败',
+          icon: 'none'
+        });
+      }
+    } catch (error) {
+      console.error('发送消息失败:', error);
+      Taro.showToast({
+        title: '发送失败',
+        icon: 'none'
+      });
+    }
   };
 
   const toggleExtraPanel = () => {
@@ -431,7 +408,8 @@ const ChatRoom: FC = () => {
   return (
     <View className='page-container chatroom-container'>
       <NavigationBar
-        title={decodeURIComponent(router.params.name || '数据库系统原理交流群')}
+        title={decodeURIComponent(name || '聊天')}
+        showBack
       />
 
       <ScrollView
@@ -440,15 +418,15 @@ const ChatRoom: FC = () => {
         scrollWithAnimation
         scrollTop={scrollTop}
       >
-        {messages.map((msg, index) => {
-          return (
+        {loading ? (
+          <View className='loading'>加载中...</View>
+        ) : messages.length > 0 ? (
+          messages.map((msg) => (
             <View
               key={msg.id}
-              className={`message-item-wrapper ${
-                msg.isSelf ? 'self' : 'other'
-              }`}
+              className={`message-item-wrapper ${msg.isSelf ? 'self' : 'other'}`}
             >
-              <View className='message-item'>
+              <View className={`message-item ${msg.isSelf ? 'self' : 'other'}`}>
                 <Image className='avatar' src={msg.avatar} />
                 <View className='message-content-area'>
                   <View className='sender-info'>
@@ -468,8 +446,17 @@ const ChatRoom: FC = () => {
                 </View>
               </View>
             </View>
-          );
-        })}
+          ))
+        ) : (
+          <View className='empty'>
+            <Image
+              className='empty-image'
+              src='https://img20.360buyimg.com/openfeedback/jfs/t1/280339/9/23161/10217/6804adb8F8b2ec7b8/15b1e330f8422ec3.png'
+              mode='aspectFit'
+            />
+            <View className='empty-text'>暂无消息记录</View>
+          </View>
+        )}
         <View style={{ height: '1px' }} />
       </ScrollView>
 
@@ -484,7 +471,7 @@ const ChatRoom: FC = () => {
             onInput={(e) => setInputValue(e.detail.value)}
             placeholder='来吹吹水吧~'
             confirmType='send'
-            onConfirm={handleSend}
+            onConfirm={handleSendMessage}
             onFocus={() => {
               setShowEmoji(false);
               setShowExtraPanel(false);
@@ -498,7 +485,7 @@ const ChatRoom: FC = () => {
             </View>
           )}
           {inputValue.trim() ? (
-            <View className='send-button active' onClick={handleSend}>
+            <View className='send-button active' onClick={handleSendMessage}>
               发送
             </View>
           ) : (

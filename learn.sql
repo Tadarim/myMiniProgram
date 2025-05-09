@@ -171,6 +171,7 @@ CREATE TABLE IF NOT EXISTS posts (
     content TEXT NOT NULL,
     attachments JSON,
     type ENUM('normal', 'help') NOT NULL DEFAULT 'normal',
+    status ENUM('public', 'private') NOT NULL DEFAULT 'public',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (author_id) REFERENCES users (id) ON DELETE CASCADE
@@ -237,8 +238,11 @@ CREATE TABLE IF NOT EXISTS comment_likes (
 
 -- 添加索引
 CREATE INDEX idx_posts_author_id ON posts (author_id);
+
 CREATE INDEX idx_posts_created_at ON posts (created_at);
+
 CREATE INDEX idx_comments_post_id ON comments (post_id);
+
 CREATE INDEX idx_comments_user_id ON comments (user_id);
 
 -- 插入用户数据
@@ -506,58 +510,312 @@ VALUES (
     );
 
 -- 插入帖子数据
-INSERT INTO posts (author_id, content, attachments, type) VALUES
-(1, '大家好，我是新来的，请问如何开始学习编程？', '[]', 'help'),
-(2, '分享一个学习Python的好方法：每天坚持写代码，从简单的开始。', '[{"type": "image", "url": "https://example.com/image1.jpg"}]', 'normal'),
-(3, '有人能推荐一些好的数据结构学习资源吗？', '[{"type": "file", "url": "https://example.com/file1.pdf", "name": "数据结构.pdf"}]', 'help');
+INSERT INTO
+    posts (
+        author_id,
+        content,
+        attachments,
+        type,
+        status
+    )
+VALUES (
+        1,
+        '大家好，我是新来的，请问如何开始学习编程？',
+        '[]',
+        'help',
+        'public'
+    ),
+    (
+        2,
+        '分享一个学习Python的好方法：每天坚持写代码，从简单的开始。',
+        '[{"type": "image", "url": "https://example.com/image1.jpg"}]',
+        'normal',
+        'public'
+    ),
+    (
+        3,
+        '有人能推荐一些好的数据结构学习资源吗？',
+        '[{"type": "file", "url": "https://example.com/file1.pdf", "name": "数据结构.pdf"}]',
+        'help',
+        'public'
+    );
 
 -- 插入标签数据
-INSERT INTO tags (name) VALUES
-('编程'),
-('Python'),
-('数据结构'),
-('学习经验'),
-('求助');
+INSERT INTO
+    tags (name)
+VALUES ('编程'),
+    ('Python'),
+    ('数据结构'),
+    ('学习经验'),
+    ('求助');
 
 -- 插入帖子标签关联数据
-INSERT INTO post_tags (post_id, tag_id) VALUES
-(1, 1),
-(1, 5),
-(2, 1),
-(2, 2),
-(2, 4),
-(3, 1),
-(3, 3),
-(3, 5);
+INSERT INTO
+    post_tags (post_id, tag_id)
+VALUES (1, 1),
+    (1, 5),
+    (2, 1),
+    (2, 2),
+    (2, 4),
+    (3, 1),
+    (3, 3),
+    (3, 5);
 
 -- 插入评论数据
-INSERT INTO comments (post_id, user_id, content) VALUES
-(1, 2, '建议从Python开始，语法简单，容易上手。'),
-(1, 3, '可以看看《Python编程：从入门到实践》这本书。'),
-(2, 1, '感谢分享，这个方法确实有效！'),
-(3, 2, '推荐《算法导论》和LeetCode刷题。');
+INSERT INTO
+    comments (post_id, user_id, content)
+VALUES (
+        1,
+        2,
+        '建议从Python开始，语法简单，容易上手。'
+    ),
+    (
+        1,
+        3,
+        '可以看看《Python编程：从入门到实践》这本书。'
+    ),
+    (2, 1, '感谢分享，这个方法确实有效！'),
+    (3, 2, '推荐《算法导论》和LeetCode刷题。');
 
 -- 插入点赞数据
-INSERT INTO post_likes (post_id, user_id) VALUES
-(1, 2),
-(1, 3),
-(2, 1),
-(2, 3),
-(3, 1),
-(3, 2);
+INSERT INTO
+    post_likes (post_id, user_id)
+VALUES (1, 2),
+    (1, 3),
+    (2, 1),
+    (2, 3),
+    (3, 1),
+    (3, 2);
 
 -- 插入收藏数据
-INSERT INTO post_collections (post_id, user_id) VALUES
-(1, 2),
-(2, 1),
-(2, 3),
-(3, 1);
+INSERT INTO
+    post_collections (post_id, user_id)
+VALUES (1, 2),
+    (2, 1),
+    (2, 3),
+    (3, 1);
 
 -- 插入评论点赞数据
-INSERT INTO comment_likes (comment_id, user_id) VALUES
-(1, 1),
-(1, 3),
-(2, 1),
-(3, 2),
-(4, 1),
-(4, 3);
+INSERT INTO
+    comment_likes (comment_id, user_id)
+VALUES (1, 1),
+    (1, 3),
+    (2, 1),
+    (3, 2),
+    (4, 1),
+    (4, 3);
+
+-- 聊天会话表
+CREATE TABLE IF NOT EXISTS chat_sessions (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL, -- 用户ID
+    target_id INT NOT NULL, -- 目标用户ID
+    last_message TEXT, -- 最后一条消息
+    last_time DATETIME, -- 最后消息时间
+    unread_count INT DEFAULT 0, -- 未读消息数
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id),
+    FOREIGN KEY (target_id) REFERENCES users (id)
+);
+
+-- 聊天消息表
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    session_id INT NOT NULL, -- 会话ID
+    sender_id INT NOT NULL, -- 发送者ID
+    receiver_id INT NOT NULL, -- 接收者ID
+    content TEXT NOT NULL, -- 消息内容
+    type ENUM('text', 'image', 'file') DEFAULT 'text', -- 消息类型
+    file_url VARCHAR(255), -- 文件URL（如果是图片或文件）
+    file_name VARCHAR(255), -- 文件名（如果是文件）
+    file_size INT, -- 文件大小（如果是文件）
+    is_read BOOLEAN DEFAULT FALSE, -- 是否已读
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES chat_sessions (id),
+    FOREIGN KEY (sender_id) REFERENCES users (id),
+    FOREIGN KEY (receiver_id) REFERENCES users (id)
+);
+
+-- 插入聊天会话数据
+INSERT INTO
+    chat_sessions (
+        user_id,
+        target_id,
+        last_message,
+        last_time,
+        unread_count
+    )
+VALUES (
+        1,
+        2,
+        '你好，最近在学什么？',
+        '2024-03-20 14:30:00',
+        2
+    ),
+    (
+        1,
+        3,
+        '下午3点开会讨论进度',
+        '2024-03-20 10:20:00',
+        0
+    ),
+    (
+        2,
+        1,
+        '我在学习React',
+        '2024-03-20 14:35:00',
+        0
+    ),
+    (
+        3,
+        1,
+        '好的，我会准时参加',
+        '2024-03-20 10:25:00',
+        1
+    );
+
+-- 插入聊天消息数据
+INSERT INTO
+    chat_messages (
+        session_id,
+        sender_id,
+        receiver_id,
+        content,
+        type,
+        created_at
+    )
+VALUES (
+        1,
+        1,
+        2,
+        '你好，最近在学什么？',
+        'text',
+        '2024-03-20 14:30:00'
+    ),
+    (
+        1,
+        2,
+        1,
+        '我在学习React',
+        'text',
+        '2024-03-20 14:35:00'
+    ),
+    (
+        1,
+        1,
+        2,
+        'React确实是个不错的选择',
+        'text',
+        '2024-03-20 14:36:00'
+    ),
+    (
+        2,
+        3,
+        1,
+        '下午3点开会讨论进度',
+        'text',
+        '2024-03-20 10:20:00'
+    ),
+    (
+        2,
+        1,
+        3,
+        '好的，我会准时参加',
+        'text',
+        '2024-03-20 10:25:00'
+    ),
+    (
+        2,
+        3,
+        1,
+        '记得带上上周的进度报告',
+        'text',
+        '2024-03-20 10:26:00'
+    );
+
+-- 微信用户和张三
+INSERT INTO
+    chat_messages (
+        session_id,
+        sender_id,
+        receiver_id,
+        content,
+        type,
+        created_at
+    )
+VALUES (
+        9,
+        4,
+        1,
+        '你好，张三，我是微信用户。',
+        'text',
+        '2024-05-08 16:50:00'
+    ),
+    (
+        9,
+        1,
+        4,
+        '你好，欢迎加入！',
+        'text',
+        '2024-05-08 16:51:00'
+    );
+
+-- 微信用户和李四
+INSERT INTO
+    chat_messages (
+        session_id,
+        sender_id,
+        receiver_id,
+        content,
+        type,
+        created_at
+    )
+VALUES (
+        10,
+        4,
+        2,
+        '李四，请问这个课程怎么学习？',
+        'text',
+        '2024-05-08 16:52:00'
+    ),
+    (
+        10,
+        2,
+        4,
+        '可以先看课程视频，有问题随时问我。',
+        'text',
+        '2024-05-08 16:53:00'
+    );
+
+-- 微信用户和王五
+INSERT INTO
+    chat_messages (
+        session_id,
+        sender_id,
+        receiver_id,
+        content,
+        type,
+        created_at
+    )
+VALUES (
+        11,
+        4,
+        3,
+        '王五，谢谢你的帮助！',
+        'text',
+        '2024-05-08 16:54:00'
+    ),
+    (
+        11,
+        3,
+        4,
+        '不客气，祝你学习进步！',
+        'text',
+        '2024-05-08 16:55:00'
+    );
+
+SELECT * FROM chat_sessions WHERE user_id = 4;
+
+ALTER TABLE chat_sessions
+ADD COLUMN type ENUM('single', 'group') NOT NULL DEFAULT 'single';

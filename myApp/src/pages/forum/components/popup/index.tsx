@@ -6,7 +6,6 @@ import {
   Cell,
   Button,
   TextArea,
-  Uploader,
   UploaderFileItem,
   Tag
 } from '@nutui/nutui-react-taro';
@@ -24,22 +23,16 @@ interface Attachment {
 
 export const PopupRender = ({ visible, onPublish, onClose }) => {
   const [content, setContent] = useState('');
-  const [attachments, setAttachments] = useState<UploaderFileItem[]>([]);
   const [postType, setPostType] = useState<'normal' | 'help'>('normal');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [fileAttachments, setFileAttachments] = useState<Attachment[]>([]);
 
   const availableTags = ['学习问题', '组队邀请', '资源共享', '其他'];
 
-  // 防止 NutUI 自动上传
-  const noopUpload = () => Promise.resolve({
-    url: '',
-    name: '',
-    type: 'image',
-    status: 'success'
-  } as UploaderFileItem);
-
   // 上传到后端（后端再转存七牛云）
-  const handleUpload = async (fileObj: UploaderFileItem): Promise<{url: string; type: string; name: string}> => {
+  const handleUpload = async (
+    fileObj: UploaderFileItem
+  ): Promise<{ url: string; type: string; name: string }> => {
     return new Promise((resolve, reject) => {
       const token = Taro.getStorageSync('token');
       Taro.uploadFile({
@@ -84,30 +77,50 @@ export const PopupRender = ({ visible, onPublish, onClose }) => {
     });
     if (res.tempFiles && res.tempFiles.length > 0) {
       const file = res.tempFiles[0];
-      setAttachments(prev => [
-        ...prev,
-        {
+
+      try {
+        // 显示上传中提示
+        Taro.showLoading({
+          title: '上传中...'
+        });
+
+        // 立即上传文件获取 url
+        const result = await handleUpload({
           url: file.path,
           name: file.name,
-          type: 'file'
-        }
-      ]);
+          type: file.type
+        });
+
+        Taro.hideLoading();
+
+        setFileAttachments((prev) => [
+          ...prev,
+          { url: result.url, name: file.name, type: file.type }
+        ]);
+
+        Taro.showToast({
+          title: '上传成功',
+          icon: 'success',
+          duration: 2000
+        });
+      } catch (error) {
+        Taro.hideLoading();
+
+        console.error('上传文件失败:', error);
+        Taro.showToast({
+          title: '上传文件失败',
+          icon: 'none',
+          duration: 2000
+        });
+      }
     }
   };
 
   // 发布
   const handlePublish = async () => {
-    const uploadedAttachments: Attachment[] = [];
-
-    // 上传所有附件
-    for (const attachment of attachments) {
-      const result = await handleUpload(attachment);
-      uploadedAttachments.push(result);
-    }
-
     onPublish({
       content,
-      attachments: uploadedAttachments,
+      attachments: fileAttachments,
       type: postType,
       tags: selectedTags
     });
@@ -190,33 +203,14 @@ export const PopupRender = ({ visible, onPublish, onClose }) => {
           />
 
           <Cell
-            title='图片'
-            description={
-              <Uploader
-                value={attachments.filter(item => item.type === 'image')}
-                autoUpload={false}
-                upload={noopUpload}
-                onChange={imgs => {
-                  // 只保留图片类型，合并已有文件类型
-                  setAttachments([
-                    ...imgs.map(img => ({ ...img, type: 'image' })),
-                    ...attachments.filter(item => item.type === 'file')
-                  ]);
-                }}
-                maxCount={9}
-              />
-            }
-          />
-          <Cell
-            title='文件'
+            title='附件'
             description={
               <Button type='primary' size='small' onClick={handleChooseFile}>
                 上传文件
               </Button>
             }
           />
-          {/* 文件列表展示 */}
-          {attachments.filter(item => item.type === 'file').map(file => (
+          {fileAttachments.map((file) => (
             <View key={file.url} style={{ margin: '8px 0', color: '#555' }}>
               {file.name}
             </View>
@@ -237,4 +231,3 @@ export const PopupRender = ({ visible, onPublish, onClose }) => {
     />
   );
 };
-

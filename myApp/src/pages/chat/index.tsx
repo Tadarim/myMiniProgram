@@ -1,71 +1,59 @@
-import { View } from '@tarojs/components';
+import { View, Image } from '@tarojs/components';
 import Taro, { navigateTo, useDidShow } from '@tarojs/taro';
 
-import { FC, useState } from 'react';
+import { FC, useState, useEffect } from 'react';
 
 import ChatItem from './components/ChatItem';
 
+import { getChatSessions, ChatSession } from '@/api/chat';
 import NavigationBar from '@/components/navigationBar';
-
 import './index.less';
 
-const initialChatListData = [
-  {
-    id: 1,
-    avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-    name: '前端交流群',
-    lastMessage: '大家有遇到过这个问题吗？',
-    time: '14:30',
-    deleted: false
-  },
-  {
-    id: 2,
-    avatar: 'https://avatars.githubusercontent.com/u/2?v=4',
-    name: '产品设计群',
-    lastMessage: '新版本的设计稿已经上传了',
-    time: '12:45',
-    deleted: false
-  },
-  {
-    id: 3,
-    avatar: 'https://avatars.githubusercontent.com/u/3?v=4',
-    name: '项目开发群',
-    lastMessage: '今天下午3点开会讨论进度',
-    time: '10:20',
-    deleted: false
-  }
-];
-
 const ChatPage: FC = () => {
-  const [chatList, setChatList] = useState(initialChatListData);
+  const [chatList, setChatList] = useState<ChatSession[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const fetchChatList = () => {
-    console.log('ChatPage: onShow triggered, fetching/refreshing chat list.');
-
-    const deletedChatId = Taro.getStorageSync('deletedChatId');
-    if (deletedChatId) {
-      console.log(
-        `ChatPage: Detected deleted chat ID: ${deletedChatId}, filtering list.`
-      );
-      setChatList((prevList) =>
-        prevList.filter((chat) => chat.id !== deletedChatId)
-      );
-      Taro.removeStorageSync('deletedChatId');
-    } else {
-      setChatList(initialChatListData.filter((chat) => !chat.deleted)); // 确保不显示已标记删除的
+  const fetchChatList = async () => {
+    try {
+      setLoading(true);
+      const res = await getChatSessions();
+      if (res.statusCode === 200 && res.data.code === 200) {
+        // 使用 data.data 获取实际的会话列表
+        setChatList(res.data.data || []);
+      } else {
+        setChatList([]);
+        Taro.showToast({
+          title: res.data.message || '获取聊天列表失败',
+          icon: 'none'
+        });
+      }
+    } catch (error) {
+      console.error('获取聊天列表失败:', error);
+      setChatList([]);
+      Taro.showToast({
+        title: '获取聊天列表失败',
+        icon: 'none'
+      });
+    } finally {
+      setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchChatList();
+  }, []);
 
   useDidShow(() => {
     fetchChatList();
   });
 
-  const handleChatClick = (chat) => {
-    Taro.removeStorageSync('deletedChatId');
+  const handleChatClick = (chat: ChatSession) => {
     navigateTo({
-      url: `/pages/chatRoom/index?id=${chat.id}&name=${encodeURIComponent(
-        chat.name
-      )}&avatar=${encodeURIComponent(chat.avatar)}`
+      url: `/pages/chatRoom/index?id=${chat.id}&targetId=${
+        chat.target_id
+      }&name=${encodeURIComponent(
+        chat.target_name || ''
+      )}&avatar=${encodeURIComponent(chat.target_avatar || '')}`
     });
   };
 
@@ -73,16 +61,33 @@ const ChatPage: FC = () => {
     <View className='chat-page'>
       <NavigationBar title='聊天' showBack={false} />
       <View className='chat-list'>
-        {chatList.map((chat) => (
-          <ChatItem
-            key={chat.id}
-            avatar={chat.avatar}
-            name={chat.name}
-            lastMessage={chat.lastMessage}
-            time={chat.time}
-            onClick={() => handleChatClick(chat)}
-          />
-        ))}
+        {loading ? (
+          <View className='loading'>加载中...</View>
+        ) : chatList.length > 0 ? (
+          chatList.map((chat) => (
+            <ChatItem
+              key={chat.id}
+              avatar={chat.target_avatar || ''}
+              name={chat.target_name || '未知用户'}
+              lastMessage={chat.last_message || ''}
+              time={chat.last_time ? new Date(chat.last_time).toLocaleTimeString('zh-CN', {
+                hour: '2-digit',
+                minute: '2-digit'
+              }) : ''}
+              unreadCount={chat.unread_count || 0}
+              onClick={() => handleChatClick(chat)}
+            />
+          ))
+        ) : (
+          <View className='empty'>
+            <Image
+              className='empty-image'
+              src='https://img20.360buyimg.com/openfeedback/jfs/t1/280339/9/23161/10217/6804adb8F8b2ec7b8/15b1e330f8422ec3.png'
+              mode='aspectFit'
+            />
+            <View className='empty-text'>暂无聊天记录</View>
+          </View>
+        )}
       </View>
     </View>
   );
