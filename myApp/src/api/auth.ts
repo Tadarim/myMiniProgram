@@ -2,7 +2,8 @@ import Taro, { request } from '@tarojs/taro';
 
 import { UserInfo } from '../types/user';
 
-import { BASE_URL, API_ROUTES } from './constant';
+import { API_ROUTES } from './constant';
+import { ApiResponse } from './types';
 
 export interface LoginResponse {
   success: boolean;
@@ -17,11 +18,6 @@ export interface VerificationResponse {
   message: string;
 }
 
-export interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-}
-
 export const authService = {
   // 邮箱登录/注册
   async loginWithEmail(
@@ -30,7 +26,7 @@ export const authService = {
   ): Promise<LoginResponse> {
     try {
       const response = await request({
-        url: `${BASE_URL}${API_ROUTES.LOGIN}`,
+        url: API_ROUTES.LOGIN,
         method: 'POST',
         data: { email, password }
       });
@@ -49,7 +45,7 @@ export const authService = {
   async sendVerificationCode(email: string): Promise<VerificationResponse> {
     try {
       const response = await request({
-        url: `${BASE_URL}${API_ROUTES.SEND_CODE}`,
+        url: API_ROUTES.SEND_CODE,
         method: 'POST',
         data: { email }
       });
@@ -72,7 +68,7 @@ export const authService = {
   ): Promise<VerificationResponse> {
     try {
       const response = await request({
-        url: `${BASE_URL}${API_ROUTES.RESET_PASSWORD}`,
+        url: API_ROUTES.RESET_PASSWORD,
         method: 'POST',
         data: { email, code, newPassword }
       });
@@ -91,7 +87,7 @@ export const authService = {
   async loginWithWeChat(code: string): Promise<LoginResponse> {
     try {
       const response = await request({
-        url: `${BASE_URL}${API_ROUTES.WECHAT_LOGIN}`,
+        url: API_ROUTES.WECHAT_LOGIN,
         method: 'POST',
         data: { code }
       });
@@ -119,7 +115,7 @@ export const authService = {
         throw new Error('未登录');
       }
       const response = await request({
-        url: `${BASE_URL}${API_ROUTES.UPDATE_PROFILE}`,
+        url: API_ROUTES.UPDATE_PROFILE,
         method: 'POST',
         data: userInfo,
         header: {

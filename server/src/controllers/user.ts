@@ -10,6 +10,8 @@ import {
   UserRow
 } from "../types/user";
 import { query } from "../utils/query";
+import { RowDataPacket } from "mysql2";
+import { pool } from "../utils/pool";
 
 export const getUserList = async (req: Request, res: Response) => {
   try {
@@ -334,5 +336,92 @@ export const deleteUser = async (req: Request, res: Response) => {
       message: "服务器错误",
     };
     res.status(500).json(response);
+  }
+};
+
+// 获取用户统计数据
+export const getUserStats = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({
+        code: 401,
+        success: false,
+        message: "请先登录",
+      });
+    }
+
+    // 1. 获取用户学习的课程数量（通过历史记录中的course类型计算）
+    const [courseResult] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(DISTINCT target_id) as courseCount 
+       FROM history_records 
+       WHERE user_id = ? AND target_type = 'course'`,
+      [userId]
+    );
+    const courseCount = courseResult[0]?.courseCount || 0;
+
+    // 2. 获取用户完成的题库数量（通过exercise_completions表计算）
+    const [exerciseResult] = await pool.query<RowDataPacket[]>(
+      `SELECT COUNT(DISTINCT exercise_set_id) as exerciseCount 
+       FROM exercise_completions 
+       WHERE user_id = ?`,
+      [userId]
+    );
+    const exerciseCount = exerciseResult[0]?.exerciseCount || 0;
+
+    // 3. 获取用户最近学习的5个课程
+    const [recentCourses] = await pool.query<RowDataPacket[]>(
+      `SELECT c.id, c.title, c.cover, h.created_at
+       FROM history_records h
+       JOIN courses c ON h.target_id = c.id
+       WHERE h.user_id = ? AND h.target_type = 'course'
+       ORDER BY h.created_at DESC
+       LIMIT 5`,
+      [userId]
+    );
+
+    // 4. 获取用户最近完成的5个题库
+    const [recentExercises] = await pool.query<RowDataPacket[]>(
+      `SELECT e.id, e.title, ec.completed_at
+       FROM exercise_completions ec
+       JOIN exercise_sets e ON ec.exercise_set_id = e.id
+       WHERE ec.user_id = ?
+       ORDER BY ec.completed_at DESC
+       LIMIT 5`,
+      [userId]
+    );
+
+    // 5. 获取用户完成题库的平均分数（如果有相关表）
+    let averageScore = 0;
+    try {
+      const [scoreResult] = await pool.query<RowDataPacket[]>(
+        `SELECT AVG(score) as averageScore 
+         FROM exercise_scores 
+         WHERE user_id = ?`,
+        [userId]
+      );
+      averageScore = scoreResult[0]?.averageScore || 0;
+    } catch (error) {
+      console.log("获取平均分数失败，可能没有相关表:", error);
+    }
+
+    res.json({
+      code: 200,
+      success: true,
+      data: {
+        courseCount,
+        exerciseCount,
+        averageScore,
+        recentCourses,
+        recentExercises
+      }
+    });
+  } catch (error) {
+    console.error("获取用户统计数据失败:", error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: "服务器错误",
+    });
   }
 };

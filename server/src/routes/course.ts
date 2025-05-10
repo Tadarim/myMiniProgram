@@ -13,6 +13,7 @@ import {
   reviewMaterial,
   deleteMaterial,
   updateCourseViewCount,
+  toggleCourseCollection
 } from "../controllers/course";
 import {
   verifyTokenMiddleware,
@@ -47,5 +48,7 @@ router.get("/chapter/:id", getChapterDetail);
 
 router.put("/material/:id/review", reviewMaterial);
 router.delete("/material/:id", deleteMaterial);
+
+router.post("/:courseId/collection", verifyTokenMiddleware(), setUserFromToken, toggleCourseCollection);
 
 export default router;

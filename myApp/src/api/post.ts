@@ -1,8 +1,8 @@
-import Taro from '@tarojs/taro';
+import Taro, { request } from '@tarojs/taro';
+
+import { ApiResponse } from '../types/common';
 
 import { API_ROUTES } from './constant';
-
-import { API_BASE_URL } from '@/config';
 
 export interface Attachment {
   url: string;
@@ -47,42 +47,6 @@ export interface CommentListResponse {
   data: Comment[];
   total: number;
 }
-
-// 基础请求函数
-const request = async <T>(options: Taro.request.Option) => {
-  try {
-    const token = Taro.getStorageSync('token');
-    const header = {
-      'Content-Type': 'application/json',
-      ...options.header
-    };
-
-    if (token) {
-      header['Authorization'] = `Bearer ${token}`;
-    }
-
-    const response = await Taro.request({
-      ...options,
-      url: `${API_BASE_URL}${options.url}`,
-      header
-    });
-
-    if (response.statusCode === 401) {
-      Taro.removeStorageSync('token');
-      Taro.navigateTo({ url: '/pages/login/index' });
-      throw new Error('登录已过期');
-    }
-
-    if (response.statusCode >= 400) {
-      throw new Error(response.data.message || '请求失败');
-    }
-
-    return response.data as T;
-  } catch (error) {
-    console.error('请求失败:', error);
-    throw error;
-  }
-};
 
 // 获取帖子列表
 export const getPosts = async (params: {
@@ -129,21 +93,38 @@ export const toggleLike = async (postId: number) => {
 };
 
 // 收藏/取消收藏帖子
-export const toggleCollection = async (postId: number) => {
-  return request<{
-    data: { collections_count: number; is_collected: boolean };
-  }>({
-    url: `/posts/${postId}/collection`,
-    method: 'POST'
-  });
+export const toggleCollection = async (
+  postId: number
+): Promise<
+  ApiResponse<{ collections_count: number; is_collected: boolean }>
+> => {
+  try {
+    const token = Taro.getStorageSync('token');
+    const response = await request({
+      url: `/posts/${postId}/collection`,
+      method: 'POST',
+      header: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (response.statusCode === 200) {
+      return response.data;
+    }
+    throw new Error(response.data.message || '收藏操作失败');
+  } catch (error) {
+    console.error('Toggle post collection failed:', error);
+    throw error;
+  }
 };
 
 // 获取帖子评论列表
 export const getComments = async (
   postId: number,
   params: {
-  page: number;
-  pageSize: number;
+    page: number;
+    pageSize: number;
   }
 ) => {
   return request<CommentListResponse>({

@@ -9,12 +9,8 @@ import {
   getPostDetail,
   deletePost,
   uploadPostFile,
-  togglePostStatus
+  togglePostStatus,
 } from "../controllers/post";
-import {
-  verifyTokenMiddleware,
-  setUserFromToken,
-} from "../middleware/verifyToken";
 
 const router = Router();
 
@@ -25,52 +21,27 @@ router.get("/list", getPosts);
 router.get("/:postId", getPostDetail);
 
 // 创建帖子
-router.post("/create", verifyTokenMiddleware(), setUserFromToken, createPost);
+router.post("/create", createPost);
 
 // 点赞/取消点赞
-router.post(
-  "/:postId/like",
-  verifyTokenMiddleware(),
-  setUserFromToken,
-  toggleLike
-);
+router.post("/:postId/like", toggleLike);
 
 // 收藏/取消收藏
-router.post(
-  "/:postId/collection",
-  verifyTokenMiddleware(),
-  setUserFromToken,
-  toggleCollection
-);
+router.post("/:postId/collection", toggleCollection);
 
 // 获取帖子评论
 router.get("/:postId/comments", getComments);
 
 // 添加评论
-router.post(
-  "/:postId/comments",
-  verifyTokenMiddleware(),
-  setUserFromToken,
-  addComment
-);
+router.post("/:postId/comments", addComment);
 
 // 删除帖子
-router.delete(
-  "/:postId",
-  verifyTokenMiddleware(),
-  setUserFromToken,
-  deletePost
-);
+router.delete("/:postId", deletePost);
 
 // 上传图片/文件接口
-router.post("/upload", verifyTokenMiddleware(), setUserFromToken, uploadPostFile);
+router.post("/upload", uploadPostFile);
 
 // 切换帖子状态
-router.put(
-  "/:postId/status",
-  verifyTokenMiddleware(),
-  setUserFromToken,
-  togglePostStatus
-);
+router.put("/:postId/status", togglePostStatus);
 
 export default router;

@@ -6,6 +6,7 @@ import { Dialog, Radio } from '@nutui/nutui-react-taro';
 import React, { useState, useEffect } from 'react';
 
 import { exerciseService } from '@/api/exercise';
+import { addHistory } from '@/api/history';
 import NavigationBar from '@/components/navigationBar';
 import { Question } from '@/types/exercise';
 
@@ -36,6 +37,7 @@ const ExerciseDetail: React.FC = () => {
       );
       setQuestions(res.data.questions);
       setCorrectAnswers(res.data.questions.map((item) => item.answer));
+      setIsCollected(res.data.is_collected);
     } catch (error) {
       console.error('获取习题详情失败:', error);
     }
@@ -43,6 +45,9 @@ const ExerciseDetail: React.FC = () => {
 
   useEffect(() => {
     fetchExerciseDetail();
+    if (router.params.id) {
+      addHistory(router.params.id, 'exercise');
+    }
   }, [router]);
 
   const handleSingleSelect = (value: string) => {
@@ -115,16 +120,32 @@ const ExerciseDetail: React.FC = () => {
     setSelectedAnswer(answers[currentIndex - 1] || []);
   }, [currentIndex, answers]);
 
-  const handleCollectToggle = () => {
-    const newCollectStatus = !isCollected;
-    setIsCollected(newCollectStatus);
+  const handleCollectToggle = async () => {
+    try {
+      const response = await exerciseService.toggleExerciseCollection(router.params.id ?? '');
 
-    showToast({
-      title: newCollectStatus ? '收藏成功' : '取消收藏',
-      icon: 'success',
-      duration: 1500
-    });
-    console.log('练习题集收藏状态:', newCollectStatus);
+      if (response.code === 200) {
+        setIsCollected(response.data.is_collected);
+        showToast({
+          title: response.message || (response.data.is_collected ? '收藏成功' : '取消收藏'),
+          icon: 'success',
+          duration: 1500
+        });
+      } else {
+        showToast({
+          title: response.message || '操作失败',
+          icon: 'none',
+          duration: 1500
+        });
+      }
+    } catch (error) {
+      console.error('收藏操作失败:', error);
+      showToast({
+        title: '操作失败',
+        icon: 'none',
+        duration: 1500
+      });
+    }
   };
 
   const currentQuestion = questions[currentIndex - 1];

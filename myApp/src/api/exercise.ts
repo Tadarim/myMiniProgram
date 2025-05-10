@@ -1,6 +1,8 @@
 import Taro, { request } from '@tarojs/taro';
 
-import { API_ROUTES, BASE_URL } from './constant';
+import { ApiResponse } from '../types/common';
+
+import { API_ROUTES } from './constant';
 
 export const exerciseService = {
   // 获取习题列表
@@ -24,7 +26,7 @@ export const exerciseService = {
     };
 
     const res = await request({
-      url: `${BASE_URL}${API_ROUTES.EXERCISE_LIST}`,
+      url: API_ROUTES.EXERCISE_LIST,
       method: 'GET',
       data: params,
       header: headers
@@ -36,24 +38,33 @@ export const exerciseService = {
   },
 
   // 获取习题详情
-  async getExerciseDetail(id: string) {
+  async getExerciseDetail(exerciseId: string): Promise<any> {
     const token = Taro.getStorageSync('token');
-    const res = await request({
-      url: `${BASE_URL}/exercise/detail/${id}`,
-      method: 'GET',
-      header: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
+    try {
+      const response = await request({
+        url: `/exercise/detail/${exerciseId}`,
+        method: 'GET',
+        header: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.statusCode === 200) {
+        return response.data;
       }
-    });
-    return res.data;
+      throw new Error(response.data.message || '获取习题详情失败');
+    } catch (error) {
+      console.error('Get exercise detail failed:', error);
+      throw error;
+    }
   },
 
   // 收藏/取消收藏
   async collectExercise(id: string, collect: boolean) {
     const token = Taro.getStorageSync('token');
     const res = await request({
-      url: `${BASE_URL}/exercise/${id}/collect`,
+      url: `/exercise/${id}/collect`,
       method: 'POST',
       data: { collect },
       header: {
@@ -65,29 +76,54 @@ export const exerciseService = {
   },
 
   // 更新完成数
-  async updateCompleteCount(id: string) {
+  async updateCompleteCount(exerciseId: string): Promise<any> {
     const token = Taro.getStorageSync('token');
-    const userId = Taro.getStorageSync('userInfo').id;
-
-    if (!token || !userId) {
-      Taro.navigateTo({
-        url: '/pages/login/index'
+    const userId = Taro.getStorageSync('userId');
+    try {
+      const response = await request({
+        url: `/exercise/${exerciseId}/complete`,
+        method: 'POST',
+        data: { userId },
+        header: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       });
-      throw new Error('请先登录');
-    }
 
-    const res = await request({
-      url: `${BASE_URL}/exercise/${id}/complete`,
-      method: 'POST',
-      data: { userId },
-      header: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
+      if (response.statusCode === 200) {
+        return response.data;
       }
-    });
+      throw new Error(response.data.message || '更新完成数量失败');
+    } catch (error) {
+      console.error('Update complete count failed:', error);
+      throw error;
+    }
+  },
 
-    if (res.statusCode === 200) {
-      return res.data;
+  // 收藏/取消收藏习题
+  async toggleExerciseCollection(
+    exerciseId: string
+  ): Promise<
+    ApiResponse<{ collections_count: number; is_collected: boolean }>
+  > {
+    try {
+      const token = Taro.getStorageSync('token');
+      const response = await request({
+        url: `/exercise/${exerciseId}/collection`,
+        method: 'POST',
+        header: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.statusCode === 200) {
+        return response.data;
+      }
+      throw new Error(response.data.message || '收藏操作失败');
+    } catch (error) {
+      console.error('Toggle exercise collection failed:', error);
+      throw error;
     }
   }
 };

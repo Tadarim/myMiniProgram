@@ -6,6 +6,7 @@ import { Rate } from '@nutui/nutui-react-taro';
 import { useEffect, useState } from 'react';
 
 import { courseService } from '@/api/course';
+import { addHistory } from '@/api/history';
 import List from '@/components/list';
 import NavigationBar from '@/components/navigationBar';
 import Title from '@/components/title';
@@ -36,6 +37,8 @@ const CourseDetail = () => {
         const courseId = router.params.id;
         if (!courseId) return;
 
+        addHistory(Number(courseId), 'course');
+
         courseService.updateCourseViewCount(Number(courseId));
 
         const response = await courseService.getCourseDetail(Number(courseId));
@@ -44,6 +47,7 @@ const CourseDetail = () => {
             ...prev,
             ...response.data
           }));
+          setIsCollected(response.data.is_collected);
         }
       } catch (error) {
         console.error('获取课程详情失败:', error);
@@ -59,15 +63,34 @@ const CourseDetail = () => {
     fetchCourseDetail();
   }, [router.params.id]);
 
-  const handleFavoriteToggle = () => {
-    const newFavoriteStatus = !isCollected;
-    setIsCollected(newFavoriteStatus);
+  const handleFavoriteToggle = async () => {
+    try {
+      const courseId = router.params.id;
+      if (!courseId) return;
 
-    showToast({
-      title: newFavoriteStatus ? '收藏成功' : '取消收藏',
-      icon: 'success',
-      duration: 1500
-    });
+      const response = await courseService.toggleCourseCollection(Number(courseId));
+      if (response.code === 200) {
+        setIsCollected(response.data.is_collected);
+        showToast({
+          title: response.message || (response.data.is_collected ? '收藏成功' : '取消收藏'),
+          icon: 'success',
+          duration: 1500
+        });
+      } else {
+        showToast({
+          title: response.message || '操作失败',
+          icon: 'none',
+          duration: 1500
+        });
+      }
+    } catch (error) {
+      console.error('收藏操作失败:', error);
+      showToast({
+        title: '操作失败',
+        icon: 'none',
+        duration: 1500
+      });
+    }
   };
 
   const handleRatingChange = async (value: number) => {
@@ -133,7 +156,7 @@ const CourseDetail = () => {
           <Text className='course-title'>{courseInfo.title}</Text>
           <View className='favorite-button' onClick={handleFavoriteToggle}>
             {isCollected ? (
-              <StarFill color='gold' size={24} />
+              <StarFill color='#FFEB3B' size={24} />
             ) : (
               <Star color='#fff' size={24} />
             )}

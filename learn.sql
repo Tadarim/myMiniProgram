@@ -97,20 +97,27 @@ CREATE TABLE IF NOT EXISTS materials (
     FOREIGN KEY (chapter_id) REFERENCES chapters (id) ON DELETE CASCADE
 );
 
--- 收藏表
+-- 收藏表（支持课程、习题、帖子）
 CREATE TABLE IF NOT EXISTS favorites (
     id INT PRIMARY KEY AUTO_INCREMENT,
     user_id INT NOT NULL,
     target_id INT NOT NULL,
-    target_type ENUM('course', 'material') NOT NULL,
+    target_type ENUM('course', 'exercise', 'post') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    UNIQUE KEY unique_favorite (
-        user_id,
-        target_id,
-        target_type
-    )
-);
+    UNIQUE KEY unique_favorite (user_id, target_id, target_type)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+-- 用户历史记录表（支持课程、习题、帖子）
+CREATE TABLE IF NOT EXISTS history_records (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    target_id INT NOT NULL,
+    target_type ENUM('course', 'exercise', 'post') NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
+    UNIQUE KEY unique_history (user_id, target_id, target_type)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- 日程表
 CREATE TABLE IF NOT EXISTS schedules (
@@ -196,16 +203,6 @@ CREATE TABLE IF NOT EXISTS post_tags (
 
 -- 帖子点赞表
 CREATE TABLE IF NOT EXISTS post_likes (
-    post_id INT NOT NULL,
-    user_id INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    PRIMARY KEY (post_id, user_id),
-    FOREIGN KEY (post_id) REFERENCES posts (id) ON DELETE CASCADE,
-    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
-);
-
--- 帖子收藏表
-CREATE TABLE IF NOT EXISTS post_collections (
     post_id INT NOT NULL,
     user_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -587,14 +584,6 @@ VALUES (1, 2),
     (3, 1),
     (3, 2);
 
--- 插入收藏数据
-INSERT INTO
-    post_collections (post_id, user_id)
-VALUES (1, 2),
-    (2, 1),
-    (2, 3),
-    (3, 1);
-
 -- 插入评论点赞数据
 INSERT INTO
     comment_likes (comment_id, user_id)
@@ -819,3 +808,24 @@ SELECT * FROM chat_sessions WHERE user_id = 4;
 
 ALTER TABLE chat_sessions
 ADD COLUMN type ENUM('single', 'group') NOT NULL DEFAULT 'single';
+-- 课程标签
+('编程基础', 'course'),
+('数据结构', 'course'),
+('算法', 'course'),
+('前端开发', 'course'),
+('后端开发', 'course'),
+('数据库', 'course'),
+('人工智能', 'course'),
+('机器学习', 'course'),
+-- 习题标签
+('选择题', 'exercise'),
+('填空题', 'exercise'),
+('编程题', 'exercise'),
+('算法题', 'exercise'),
+('实战题', 'exercise'),
+-- 帖子标签
+('学习经验', 'post'),
+('技术分享', 'post'),
+('问题求助', 'post'),
+('资源推荐', 'post'),
+('讨论交流', 'post');

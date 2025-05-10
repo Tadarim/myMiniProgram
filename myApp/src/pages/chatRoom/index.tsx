@@ -8,10 +8,17 @@ import {
   List as ListIcon,
   Order
 } from '@nutui/icons-react-taro';
-import { FC, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, FC } from 'react';
 
-import { getChatMessages, sendMessage, ChatMessage } from '@/api/chat';
+import {
+  getChatMessages,
+  sendMessage,
+  uploadChatImage,
+  uploadChatFile,
+  getFileUrl
+} from '@/api/chat';
 import NavigationBar from '@/components/navigationBar';
+import { ChatMessage } from '@/types/chat';
 
 import './index.less';
 
@@ -25,6 +32,7 @@ interface Message {
   isSelf: boolean;
   avatar: string;
   name: string;
+  needs_url_fetch?: boolean;
 }
 
 const EMOJI_LIST = [
@@ -116,19 +124,31 @@ const EMOJI_LIST = [
 
 const ChatRoom: FC = () => {
   const router = useRouter();
-  const { id: sessionId, targetId, name, avatar } = router.params;
+  const { id: sessionId, name, type } = router.params;
+  const scrollViewRef = useRef<any>(null);
 
   const [inputValue, setInputValue] = useState('');
   const [showEmoji, setShowEmoji] = useState(false);
   const [showExtraPanel, setShowExtraPanel] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(1);
+  const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [scrollTop, setScrollTop] = useState(0);
+  const isGroupChat = type === 'group';
 
-  const fetchMessages = async () => {
+  const panelHeight = 260;
+  const inputHeight = 60;
+  const navHeight = 84;
+
+  const fetchMessages = async (
+    pageNum: number = 1,
+    isLoadMore: boolean = false
+  ) => {
     try {
       setLoading(true);
-      const res = await getChatMessages(Number(sessionId));
+      const res = await getChatMessages(Number(sessionId), pageNum);
       if (res.statusCode === 200 && res.data.code === 200) {
         const formattedMessages = res.data.data.map((msg: ChatMessage) => ({
           id: msg.id,
@@ -142,14 +162,18 @@ const ChatRoom: FC = () => {
           avatar: msg.sender_avatar,
           name: msg.sender_name,
           fileName: msg.file_name,
-          fileSize: msg.file_size
+          fileSize: msg.file_size,
+          needs_url_fetch: msg.needs_url_fetch
         }));
-        setMessages(formattedMessages);
-      } else {
-        Taro.showToast({
-          title: res.data.message || '获取消息失败',
-          icon: 'none'
-        });
+
+        if (isLoadMore) {
+          setMessages((prev) => [...formattedMessages, ...prev]);
+        } else {
+          setMessages(formattedMessages);
+        }
+
+        setHasMore(formattedMessages.length === 20);
+        setPage(pageNum);
       }
     } catch (error) {
       console.error('获取消息失败:', error);
@@ -168,21 +192,413 @@ const ChatRoom: FC = () => {
 
   const scrollToBottom = () => {
     setTimeout(() => {
-      setScrollTop(messages.length * 200);
-    }, 100);
+      try {
+        if (process.env.TARO_ENV === 'h5') {
+          if (scrollViewRef.current) {
+            scrollViewRef.current.scrollTop =
+              scrollViewRef.current.scrollHeight;
+          }
+        } else {
+          setScrollTop(99999);
+        }
+      } catch (err) {
+        console.error('滚动失败:', err);
+      }
+    }, 200);
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages.length]);
+    if (messages.length > 0 && isFirstLoad) {
+      scrollToBottom();
+      setIsFirstLoad(false);
+    }
+  }, [messages.length, isFirstLoad]);
+
+  const handleScroll = (e) => {
+    const { scrollTop: currentScrollTop } = e.detail;
+    if (currentScrollTop < 50 && hasMore && !loading) {
+      fetchMessages(page + 1, true);
+    }
+  };
 
   const handleEmojiClick = (emoji) => {
     setInputValue((prev) => prev + emoji.text);
     setShowExtraPanel(false);
   };
 
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    const i = bytes > 0 ? Math.floor(Math.log(bytes) / Math.log(k)) : 0;
+    const index = Math.min(i, sizes.length - 1);
+    return (
+      parseFloat((bytes / Math.pow(k, index)).toFixed(2)) + ' ' + sizes[index]
+    );
+  };
+
+  const handleOpenFile = async (fileUrl: string, fileName?: string) => {
+    console.log('准备下载文件:', fileUrl);
+    // 检查URL是否包含token，如果不包含，显示错误信息
+    if (!fileUrl.includes('token=')) {
+      Taro.showModal({
+        title: '提示',
+        content: '文件链接已过期，请刷新页面后重试',
+        showCancel: false
+      });
+      return;
+    }
+
+    if (!fileName) {
+      fileName = '未命名文件_' + new Date().getTime();
+    }
+
+    Taro.showLoading({ title: '正在下载...' });
+
+    // 创建临时文件路径
+    const filePath = `${Taro.env.USER_DATA_PATH}/${fileName}`;
+
+    // 下载文件（设置较长的超时时间）
+    Taro.downloadFile({
+      url: fileUrl,
+      filePath,
+      timeout: 60000, // 设置60秒超时
+      success: function(res) {
+        console.log('文件下载成功:', res);
+        Taro.hideLoading();
+
+        if (res.statusCode === 200) {
+          Taro.showToast({
+            title: '下载成功',
+            icon: 'success',
+            duration: 1500
+          });
+
+          // 尝试打开文件
+          Taro.openDocument({
+            filePath: res.tempFilePath || filePath,
+            showMenu: true,
+            success: function() {
+              console.log('打开文档成功');
+            },
+            fail: function(err) {
+              console.error('无法打开文件:', err);
+              // 如果无法打开，提示保存
+              Taro.showModal({
+                title: '无法预览',
+                content: '该文件类型无法预览，是否保存到手机？',
+                success: function(modalRes) {
+                  if (modalRes.confirm) {
+                    // 保存文件
+                    handleSaveFile(fileUrl, fileName);
+                  }
+                }
+              });
+            }
+          });
+        } else {
+          console.error('下载文件状态异常:', res.statusCode);
+          Taro.showToast({
+            title: '下载失败',
+            icon: 'none'
+          });
+        }
+      },
+      fail: function(err) {
+        console.error('文件下载失败:', err);
+        Taro.hideLoading();
+
+        Taro.showModal({
+          title: '下载失败',
+          content: '文件下载失败，请检查网络连接或刷新页面重试',
+          confirmText: '刷新',
+          success: function(modalRes) {
+            if (modalRes.confirm) {
+              // 刷新页面以获取新的URL
+              fetchMessages();
+            }
+          }
+        });
+      }
+    });
+  };
+
+  const handleSaveFile = (fileUrl: string, fileName?: string) => {
+    console.log('准备保存文件:', fileUrl);
+    // 检查URL是否包含token
+    if (!fileUrl.includes('token=')) {
+      Taro.showModal({
+        title: '提示',
+        content: '文件链接已过期，请刷新页面后重试',
+        confirmText: '刷新',
+        success: function(modalRes) {
+          if (modalRes.confirm) {
+            // 刷新页面以获取新的URL
+            fetchMessages();
+          }
+        }
+      });
+      return;
+    }
+
+    if (!fileName) {
+      fileName = '未命名文件_' + new Date().getTime();
+    }
+
+    Taro.showLoading({ title: '正在下载...' });
+
+    // 下载文件到临时路径
+    Taro.downloadFile({
+      url: fileUrl,
+      timeout: 60000, // 设置60秒超时
+      success: function(res) {
+        console.log('文件下载成功:', res);
+
+        if (res.statusCode === 200) {
+          // 保存临时文件到本地
+          Taro.saveFile({
+            tempFilePath: res.tempFilePath,
+            success: function(saveRes) {
+              Taro.hideLoading();
+              Taro.showToast({
+                title: '文件已保存',
+                icon: 'success'
+              });
+              console.log('文件保存成功:', saveRes);
+            },
+            fail: function(saveErr) {
+              console.error('文件保存失败:', saveErr);
+              Taro.hideLoading();
+
+              // 尝试使用其他方式保存
+              if (process.env.TARO_ENV === 'h5') {
+                try {
+                  const a = document.createElement('a');
+                  a.href = fileUrl;
+                  a.download = fileName || '下载文件';
+                  a.target = '_blank';
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+
+                  Taro.showToast({
+                    title: '已打开下载链接',
+                    icon: 'success'
+                  });
+                } catch (e) {
+                  console.error('H5下载失败:', e);
+                  Taro.showToast({
+                    title: '保存失败',
+                    icon: 'none'
+                  });
+                }
+              } else {
+                Taro.showToast({
+                  title: '保存失败',
+                  icon: 'none'
+                });
+              }
+            }
+          });
+        } else {
+          Taro.hideLoading();
+          Taro.showToast({
+            title: '下载失败',
+            icon: 'none'
+          });
+        }
+      },
+      fail: function(err) {
+        console.error('文件下载失败:', err);
+        Taro.hideLoading();
+
+        Taro.showModal({
+          title: '下载失败',
+          content: '文件下载失败，请检查网络连接或刷新页面重试',
+          confirmText: '刷新',
+          success: function(modalRes) {
+            if (modalRes.confirm) {
+              // 刷新页面以获取新的URL
+              fetchMessages();
+            }
+          }
+        });
+      }
+    });
+  };
+
+  // 懒加载图片组件，需要时才获取URL
+  const LazyLoadImage = ({ messageId, fileName }) => {
+    const [imgLoading, setImgLoading] = useState(false);
+    const [imageUrl, setImageUrl] = useState('');
+    const [error, setError] = useState(false);
+
+    const fetchImageUrl = async () => {
+      try {
+        setImgLoading(true);
+        const res = await getFileUrl(messageId);
+        if (res.statusCode === 200 && res.data.code === 200) {
+          setImageUrl(res.data.data.url);
+        } else {
+          setError(true);
+          console.error('获取图片URL失败:', res);
+        }
+      } catch (err) {
+        setError(true);
+        console.error('获取图片URL异常:', err);
+      } finally {
+        setImgLoading(false);
+      }
+    };
+
+    useEffect(() => {
+      fetchImageUrl();
+    }, [messageId]);
+
+    if (imgLoading) {
+      return <View className='lazy-image loading'>加载中...</View>;
+    }
+
+    if (error || !imageUrl) {
+      return (
+        <View className='lazy-image error' onClick={fetchImageUrl}>
+          <Text>图片加载失败，点击重试</Text>
+        </View>
+      );
+    }
+
+    return (
+      <Image
+        className='message-content-image'
+        src={imageUrl}
+        mode='widthFix'
+        onClick={() => Taro.previewImage({ urls: [imageUrl] })}
+      />
+    );
+  };
+
+  // 文件附件组件，需要时才获取URL
+  const FileAttachment = ({ messageId, fileName, fileSize }) => {
+    const [fileLoading, setFileLoading] = useState(false);
+
+    // 获取文件类型图标
+    const fileExt = fileName?.split('.').pop()?.toLowerCase() || '';
+    let fileIcon = '📄';
+
+    if (['pdf'].includes(fileExt)) {
+      fileIcon = '📕';
+    } else if (['doc', 'docx'].includes(fileExt)) {
+      fileIcon = '📘';
+    } else if (['xls', 'xlsx'].includes(fileExt)) {
+      fileIcon = '📗';
+    } else if (['ppt', 'pptx'].includes(fileExt)) {
+      fileIcon = '📙';
+    } else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+      fileIcon = '🖼️';
+    } else if (['mp3', 'wav'].includes(fileExt)) {
+      fileIcon = '🎵';
+    } else if (['mp4', 'avi', 'mov'].includes(fileExt)) {
+      fileIcon = '🎬';
+    } else if (['zip', 'rar', '7z'].includes(fileExt)) {
+      fileIcon = '📦';
+    }
+
+    // 格式化文件大小
+    const formattedSize = fileSize ? formatFileSize(fileSize) : '';
+
+    const handleFileOpen = async () => {
+      try {
+        setFileLoading(true);
+        const res = await getFileUrl(messageId);
+        if (res.statusCode === 200 && res.data.code === 200) {
+          const fileUrl = res.data.data.url;
+          handleOpenFile(fileUrl, fileName);
+        } else {
+          Taro.showToast({
+            title: '获取文件链接失败',
+            icon: 'none'
+          });
+        }
+      } catch (err) {
+        console.error('获取文件URL异常:', err);
+        Taro.showToast({
+          title: '获取文件链接失败',
+          icon: 'none'
+        });
+      } finally {
+        setFileLoading(false);
+      }
+    };
+
+    const handleFileSave = async () => {
+      try {
+        setFileLoading(true);
+        const res = await getFileUrl(messageId);
+        if (res.statusCode === 200 && res.data.code === 200) {
+          const fileUrl = res.data.data.url;
+          handleSaveFile(fileUrl, fileName);
+        } else {
+          Taro.showToast({
+            title: '获取文件链接失败',
+            icon: 'none'
+          });
+        }
+      } catch (err) {
+        console.error('获取文件URL异常:', err);
+        Taro.showToast({
+          title: '获取文件链接失败',
+          icon: 'none'
+        });
+      } finally {
+        setFileLoading(false);
+      }
+    };
+
+    return (
+      <View className='file-card'>
+        <View className='file-card-header'>
+          <Text className='file-icon'>{fileIcon}</Text>
+          <Text className='file-ext'>{fileExt.toUpperCase()}</Text>
+        </View>
+        <View className='file-card-content'>
+          <Text className='file-name'>{fileName}</Text>
+          {formattedSize && <Text className='file-size'>{formattedSize}</Text>}
+        </View>
+        <View className='file-card-actions'>
+          <View
+            className='file-download-btn'
+            onClick={(e) => {
+              e.stopPropagation();
+              handleFileOpen();
+            }}
+          >
+            <Text className='download-icon'>📄</Text>
+            <Text>{fileLoading ? '加载中...' : '查看'}</Text>
+          </View>
+          <View
+            className='file-save-btn'
+            onClick={(e) => {
+              e.stopPropagation();
+              handleFileSave();
+            }}
+          >
+            <Text className='save-icon'>💾</Text>
+            <Text>{fileLoading ? '加载中...' : '保存'}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  };
+
   const renderMessageContent = (message: Message) => {
     if (message.type === 'image') {
+      // 处理需要获取URL的图片
+      if (message.needs_url_fetch) {
+        return (
+          <LazyLoadImage messageId={message.id} fileName={message.fileName} />
+        );
+      }
+
       return (
         <Image
           className='message-content-image'
@@ -192,15 +608,75 @@ const ChatRoom: FC = () => {
         />
       );
     } else if (message.type === 'file') {
+      // 处理需要获取URL的文件
+      if (message.needs_url_fetch) {
+        return (
+          <FileAttachment
+            messageId={message.id}
+            fileName={message.fileName}
+            fileSize={message.fileSize}
+          />
+        );
+      }
+
+      // 获取文件类型图标
+      let fileIcon = '📄';
+      const fileName = message.fileName || '文件';
+      const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
+
+      if (['pdf'].includes(fileExt)) {
+        fileIcon = '📕';
+      } else if (['doc', 'docx'].includes(fileExt)) {
+        fileIcon = '📘';
+      } else if (['xls', 'xlsx'].includes(fileExt)) {
+        fileIcon = '📗';
+      } else if (['ppt', 'pptx'].includes(fileExt)) {
+        fileIcon = '📙';
+      } else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
+        fileIcon = '🖼️';
+      } else if (['mp3', 'wav'].includes(fileExt)) {
+        fileIcon = '🎵';
+      } else if (['mp4', 'avi', 'mov'].includes(fileExt)) {
+        fileIcon = '🎬';
+      } else if (['zip', 'rar', '7z'].includes(fileExt)) {
+        fileIcon = '📦';
+      }
+
+      // 格式化文件大小
+      const fileSize = message.fileSize
+        ? formatFileSize(message.fileSize)
+        : '';
+
       return (
-        <View
-          className='message-content-file-wrapper'
-          onClick={() => handleOpenFile(message.content, message.fileName)}
-        >
-          <View className='message-content-file'>
-            <Text className='file-icon'>📄</Text>
-            <View className='file-info'>
-              <Text className='file-name'>{message.fileName || '文件'}</Text>
+        <View className='file-card'>
+          <View className='file-card-header'>
+            <Text className='file-icon'>{fileIcon}</Text>
+            <Text className='file-ext'>{fileExt.toUpperCase()}</Text>
+          </View>
+          <View className='file-card-content'>
+            <Text className='file-name'>{fileName}</Text>
+            {fileSize && <Text className='file-size'>{fileSize}</Text>}
+          </View>
+          <View className='file-card-actions'>
+            <View
+              className='file-download-btn'
+              onClick={(e) => {
+                e.stopPropagation();
+                handleOpenFile(message.content, message.fileName);
+              }}
+            >
+              <Text className='download-icon'>📄</Text>
+              <Text>查看</Text>
+            </View>
+            <View
+              className='file-save-btn'
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSaveFile(message.content, message.fileName);
+              }}
+            >
+              <Text className='save-icon'>💾</Text>
+              <Text>保存</Text>
             </View>
           </View>
         </View>
@@ -227,17 +703,6 @@ const ChatRoom: FC = () => {
     }
   };
 
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = bytes > 0 ? Math.floor(Math.log(bytes) / Math.log(k)) : 0;
-    const index = Math.min(i, sizes.length - 1);
-    return (
-      parseFloat((bytes / Math.pow(k, index)).toFixed(2)) + ' ' + sizes[index]
-    );
-  };
-
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
@@ -249,7 +714,6 @@ const ChatRoom: FC = () => {
       });
 
       if (res.statusCode === 200 && res.data.code === 200) {
-        // 发送成功后重新获取消息列表
         fetchMessages();
         setInputValue('');
       } else {
@@ -273,6 +737,7 @@ const ChatRoom: FC = () => {
     if (nextState) {
       setShowEmoji(false);
     }
+    setTimeout(scrollToBottom, 300);
   };
 
   const toggleEmojiPanel = () => {
@@ -281,6 +746,7 @@ const ChatRoom: FC = () => {
     if (nextState) {
       setShowExtraPanel(false);
     }
+    setTimeout(scrollToBottom, 300);
   };
 
   const handleUploadImage = () => {
@@ -292,24 +758,42 @@ const ChatRoom: FC = () => {
         const tempFilePath = res.tempFilePaths[0];
         console.log('选择的图片:', tempFilePath);
 
-        const newMessage: Message = {
-          id: Date.now(),
-          type: 'image',
-          content: tempFilePath,
-          time: new Date().toLocaleTimeString('zh-CN', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          isSelf: true,
-          avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-          name: 'test'
-        };
+        Taro.showLoading({ title: '上传中...' });
 
-        setMessages((prev) => [...prev, newMessage]);
+        uploadChatImage(tempFilePath, Number(sessionId))
+          .then((uploadRes) => {
+            console.log('图片上传结果:', uploadRes);
+
+            if (uploadRes.statusCode !== 200) {
+              throw new Error('上传失败');
+            }
+
+            let result;
+            try {
+              result = JSON.parse(uploadRes.data);
+            } catch (e) {
+              console.error('解析上传结果失败:', e);
+              throw new Error('上传结果解析失败');
+            }
+
+            if (!result.success) {
+              throw new Error(result.message || '上传失败');
+            }
+
+            // 图片上传成功后，消息已经在后端创建，只需刷新消息列表
+            fetchMessages();
+            Taro.hideLoading();
+          })
+          .catch((err) => {
+            console.error('上传/发送图片失败:', err);
+            Taro.hideLoading();
+            Taro.showToast({
+              title: err.message || '上传图片失败',
+              icon: 'none'
+            });
+          });
 
         setShowExtraPanel(false);
-        scrollToBottom();
       },
       fail: function (err) {
         console.error('选择图片失败:', err);
@@ -326,51 +810,59 @@ const ChatRoom: FC = () => {
         const tempFile = res.tempFiles[0];
         console.log('选择的文件:', tempFile);
 
-        const newMessage: Message = {
-          id: Date.now(),
-          type: 'file',
-          content: tempFile.path,
-          fileName: tempFile.name,
-          fileSize: tempFile.size,
-          time: new Date().toLocaleTimeString('zh-CN', {
-            hour12: false,
-            hour: '2-digit',
-            minute: '2-digit'
-          }),
-          isSelf: true,
-          avatar: 'https://avatars.githubusercontent.com/u/1?v=4',
-          name: 'test'
-        };
-        setMessages((prev) => [...prev, newMessage]);
+        if (!tempFile) {
+          Taro.showToast({ title: '未选择文件', icon: 'none' });
+          return;
+        }
+
+        if (tempFile.size === 0) {
+          Taro.showToast({
+            title: '文件大小为0，请选择有效文件',
+            icon: 'none'
+          });
+          return;
+        }
+
+        Taro.showLoading({ title: '上传中...' });
+
+        uploadChatFile(tempFile.path, tempFile.name, Number(sessionId))
+          .then((uploadRes) => {
+            console.log('文件上传结果:', uploadRes);
+
+            if (uploadRes.statusCode !== 200) {
+              throw new Error('上传失败');
+            }
+
+            let result;
+            try {
+              result = JSON.parse(uploadRes.data);
+            } catch (e) {
+              console.error('解析上传结果失败:', e);
+              throw new Error('上传结果解析失败');
+            }
+
+            if (!result.success) {
+              throw new Error(result.message || '上传失败');
+            }
+
+            // 文件上传成功后，消息已经在后端创建，只需刷新消息列表
+            fetchMessages();
+            Taro.hideLoading();
+          })
+          .catch((err) => {
+            console.error('上传/发送文件失败:', err);
+            Taro.hideLoading();
+            Taro.showToast({
+              title: err.message || '上传文件失败',
+              icon: 'none'
+            });
+          });
 
         setShowExtraPanel(false);
-        scrollToBottom();
       },
       fail: function (err) {
         console.error('选择文件失败:', err);
         setShowExtraPanel(false);
-      }
-    });
-  };
-
-  const handleOpenFile = (filePath: string, fileName?: string) => {
-    console.log('尝试打开文件:', filePath);
-    Taro.showLoading({ title: '正在打开文件...' });
-    Taro.openDocument({
-      filePath: filePath,
-      showMenu: true,
-      success: function (res) {
-        console.log('打开文档成功', res);
-        Taro.hideLoading();
-      },
-      fail: function (err) {
-        console.error('打开文档失败', err);
-        Taro.hideLoading();
-        Taro.showToast({
-          title: `无法预览该文件类型${fileName ? ` (${fileName})` : ''}`,
-          icon: 'none',
-          duration: 2000
-        });
       }
     });
   };
@@ -406,61 +898,69 @@ const ChatRoom: FC = () => {
   };
 
   return (
-    <View className='page-container chatroom-container'>
-      <NavigationBar
-        title={decodeURIComponent(name || '聊天')}
-        showBack
-      />
+    <View className='chatroom-container'>
+      <NavigationBar title={decodeURIComponent(name || '聊天')} showBack />
 
       <ScrollView
-        className='message-list'
+        enhanced
         scrollY
         scrollWithAnimation
+        onScroll={handleScroll}
+        showScrollbar={false}
         scrollTop={scrollTop}
+        className='message-list'
+        style={{
+          bottom:
+            showEmoji || showExtraPanel
+              ? `${panelHeight + inputHeight}px`
+              : `${inputHeight}px`
+        }}
       >
-        {loading ? (
-          <View className='loading'>加载中...</View>
-        ) : messages.length > 0 ? (
-          messages.map((msg) => (
-            <View
-              key={msg.id}
-              className={`message-item-wrapper ${msg.isSelf ? 'self' : 'other'}`}
-            >
-              <View className={`message-item ${msg.isSelf ? 'self' : 'other'}`}>
-                <Image className='avatar' src={msg.avatar} />
-                <View className='message-content-area'>
-                  <View className='sender-info'>
-                    {!msg.isSelf && <Text className='name'>{msg.name}</Text>}
-                    {msg.isSelf && (
-                      <Text className='name self-name'>{msg.name}</Text>
-                    )}
-                    <Text className='time'>{msg.time}</Text>
-                  </View>
-                  <View
-                    className={`message-bubble ${
-                      msg.type !== 'text' ? 'media' : ''
-                    }`}
-                  >
-                    <View className='text'>{renderMessageContent(msg)}</View>
-                  </View>
+        {loading && page > 1 && (
+          <View className='loading-more'>加载更多...</View>
+        )}
+
+        {messages.map((msg) => (
+          <View
+            key={msg.id}
+            className={`message-item-wrapper ${msg.isSelf ? 'self' : 'other'}`}
+          >
+            <View className={`message-item ${msg.isSelf ? 'self' : 'other'}`}>
+              <Image className='avatar' src={msg.avatar} />
+              <View className='message-content-area'>
+                <View className='sender-info'>
+                  {!msg.isSelf && <Text className='name'>{msg.name}</Text>}
+                  {msg.isSelf && (
+                    <Text className='name self-name'>{msg.name}</Text>
+                  )}
+                  <Text className='time'>{msg.time}</Text>
+                </View>
+                <View
+                  className={`message-bubble ${
+                    msg.type === 'text' ? '' : 'media'
+                  }`}
+                >
+                  <View className='text'>{renderMessageContent(msg)}</View>
                 </View>
               </View>
             </View>
-          ))
-        ) : (
-          <View className='empty'>
-            <Image
-              className='empty-image'
-              src='https://img20.360buyimg.com/openfeedback/jfs/t1/280339/9/23161/10217/6804adb8F8b2ec7b8/15b1e330f8422ec3.png'
-              mode='aspectFit'
-            />
-            <View className='empty-text'>暂无消息记录</View>
           </View>
-        )}
-        <View style={{ height: '1px' }} />
+        ))}
+        <View id='bottom' style={{ height: '30px', width: '100%' }} />
       </ScrollView>
 
-      <View className='input-area'>
+      <View
+        className='input-area'
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: showEmoji || showExtraPanel ? `${panelHeight}px` : 0,
+          zIndex: 100,
+          height: `${inputHeight}px`,
+          boxSizing: 'border-box'
+        }}
+      >
         <View className='input-controls'>
           <View className='emoji-btn' onClick={toggleEmojiPanel}>
             {!showEmoji ? <Add /> : <Minus size={14} />}
@@ -492,35 +992,57 @@ const ChatRoom: FC = () => {
             !showExtraPanel && <View className='send-button'>发送</View>
           )}
         </View>
+      </View>
 
-        {showEmoji && (
-          <View className='emoji-panel'>
-            {EMOJI_LIST.map((emoji) => (
-              <View
-                key={emoji.text}
-                className='emoji-item'
-                onClick={() => handleEmojiClick(emoji)}
-              >
-                <Image className='emoji-img' src={emoji.url} mode='aspectFit' />
-              </View>
-            ))}
+      {showEmoji && (
+        <View
+          className='emoji-panel'
+          style={{
+            height: `${panelHeight}px`,
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100
+          }}
+        >
+          {EMOJI_LIST.map((emoji) => (
+            <View
+              key={emoji.text}
+              className='emoji-item'
+              onClick={() => handleEmojiClick(emoji)}
+            >
+              <Image className='emoji-img' src={emoji.url} mode='aspectFit' />
+            </View>
+          ))}
+        </View>
+      )}
+
+      {showExtraPanel && (
+        <View
+          className='extra-panel'
+          style={{
+            height: `${panelHeight}px`,
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 100
+          }}
+        >
+          <View className='extra-panel-item' onClick={handleUploadImage}>
+            <View className='extra-panel-icon-wrapper'>
+              <ImageIcon size={32} />
+            </View>
+            <Text className='extra-panel-text'>图片</Text>
           </View>
-        )}
-
-        {showExtraPanel && (
-          <View className='extra-panel'>
-            <View className='extra-panel-item' onClick={handleUploadImage}>
-              <View className='extra-panel-icon-wrapper'>
-                <ImageIcon size={32} />
-              </View>
-              <Text className='extra-panel-text'>图片</Text>
+          <View className='extra-panel-item' onClick={handleUploadFile}>
+            <View className='extra-panel-icon-wrapper'>
+              <Order size={32} />
             </View>
-            <View className='extra-panel-item' onClick={handleUploadFile}>
-              <View className='extra-panel-icon-wrapper'>
-                <Order size={32} />
-              </View>
-              <Text className='extra-panel-text'>文件</Text>
-            </View>
+            <Text className='extra-panel-text'>文件</Text>
+          </View>
+          {isGroupChat && (
             <View className='extra-panel-item' onClick={handleLeaveGroup}>
               <View className='extra-panel-icon-wrapper'>
                 <Image
@@ -530,9 +1052,9 @@ const ChatRoom: FC = () => {
               </View>
               <Text className='extra-panel-text'>退出群聊</Text>
             </View>
-          </View>
-        )}
-      </View>
+          )}
+        </View>
+      )}
     </View>
   );
 };

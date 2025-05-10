@@ -141,7 +141,7 @@ async function uploadToQiniu(
         console.log("上传响应信息:", info);
 
         // 生成私有下载链接
-        const deadline = Math.floor(Date.now() / 1000) + 3600; // 1小时有效期
+        const deadline = Math.floor(Date.now() / 1000) + 86400; // 24小时有效期
         const bucketManager = new qiniu.rs.BucketManager(mac, config);
 
         // 确保域名格式正确s
@@ -170,6 +170,66 @@ async function uploadToQiniu(
   });
 }
 
+// 生成新的带token的文件URL
+function refreshFileUrl(fileUrl: string, fileName: string): string {
+  try {
+    if (!domain || !fileUrl) return fileUrl;
+    
+    // 从URL中提取文件key
+    const urlParts = fileUrl.split('/');
+    const key = urlParts[urlParts.length - 1];
+    
+    // 确保域名格式正确
+    const baseUrl = domain.startsWith("http") ? domain : `http://${domain}`;
+    
+    // 生成新的24小时有效期的token URL
+    const deadline = Math.floor(Date.now() / 1000) + 86400; // 24小时
+    const config = new qiniu.conf.Config();
+    config.zone = qiniu.zone.Zone_z1;
+    const bucketManager = new qiniu.rs.BucketManager(mac, config);
+    
+    // 添加原始文件名参数
+    const encodedFileName = encodeURIComponent(fileName || 'file');
+    const privateDownloadUrl = 
+      bucketManager.privateDownloadUrl(baseUrl, key, deadline) +
+      `&attname=${encodedFileName}`;
+    
+    return privateDownloadUrl;
+  } catch (err) {
+    console.error("刷新文件URL失败:", err);
+    return fileUrl; // 如果出错，返回原始URL
+  }
+}
+
+// 处理帖子中的附件URL
+function processPostAttachments(post: any): any {
+  if (!post.attachments) return post;
+  
+  try {
+    // 解析attachments字段
+    let attachments = typeof post.attachments === 'string' 
+      ? JSON.parse(post.attachments) 
+      : post.attachments;
+    
+    if (Array.isArray(attachments)) {
+      // 刷新每个附件的URL
+      attachments = attachments.map(att => {
+        if (att.url) {
+          att.url = refreshFileUrl(att.url, att.name || '');
+        }
+        return att;
+      });
+      
+      // 重新赋值
+      post.attachments = attachments;
+    }
+  } catch (err) {
+    console.error("处理帖子附件URL失败:", err);
+  }
+  
+  return post;
+}
+
 // 获取帖子列表
 export const getPosts = async (req: Request, res: Response) => {
   try {
@@ -187,9 +247,9 @@ export const getPosts = async (req: Request, res: Response) => {
         TIMESTAMPDIFF(SECOND, p.created_at, NOW()) as time_ago,
         (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
-        (SELECT COUNT(*) FROM post_collections WHERE post_id = p.id) as collections_count,
+        (SELECT COUNT(*) FROM favorites WHERE target_id = p.id AND target_type = 'post') as collections_count,
         EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked,
-        EXISTS(SELECT 1 FROM post_collections WHERE post_id = p.id AND user_id = ?) as is_collected,
+        EXISTS(SELECT 1 FROM favorites WHERE target_id = p.id AND target_type = 'post' AND user_id = ?) as is_collected,
         GROUP_CONCAT(t.name) as tags
       FROM posts p
       LEFT JOIN users u ON p.author_id = u.id
@@ -220,11 +280,14 @@ export const getPosts = async (req: Request, res: Response) => {
 
     const [rows] = await pool.query<RowDataPacket[]>(sql, params);
 
-    // 格式化时间
-    const formattedRows = rows.map((row) => ({
-      ...row,
-      time_ago: formatTimeAgo(row.time_ago),
-    }));
+    // 处理帖子中的附件URL并格式化时间
+    const formattedRows = rows.map((row) => {
+      const processedRow = processPostAttachments(row);
+      return {
+        ...processedRow,
+        time_ago: formatTimeAgo(processedRow.time_ago),
+      };
+    });
 
     // 获取总数
     let countSql = `
@@ -480,7 +543,7 @@ export const toggleCollection = async (req: Request, res: Response) => {
 
     // 检查是否已收藏
     const [existingCollection] = await pool.query<RowDataPacket[]>(
-      "SELECT 1 FROM post_collections WHERE post_id = ? AND user_id = ?",
+      "SELECT 1 FROM favorites WHERE target_id = ? AND target_type = 'post' AND user_id = ?",
       [postId, userId]
     );
 
@@ -489,20 +552,20 @@ export const toggleCollection = async (req: Request, res: Response) => {
     if (hasCollected) {
       // 取消收藏
       await pool.query(
-        "DELETE FROM post_collections WHERE post_id = ? AND user_id = ?",
+        "DELETE FROM favorites WHERE target_id = ? AND target_type = 'post' AND user_id = ?",
         [postId, userId]
       );
     } else {
       // 添加收藏
       await pool.query(
-        "INSERT INTO post_collections (post_id, user_id) VALUES (?, ?)",
-        [postId, userId]
+        "INSERT INTO favorites (user_id, target_id, target_type) VALUES (?, ?, 'post')",
+        [userId, postId]
       );
     }
 
     // 获取更新后的收藏数
     const [collectionsCount] = await pool.query<RowDataPacket[]>(
-      "SELECT COUNT(*) as count FROM post_collections WHERE post_id = ?",
+      "SELECT COUNT(*) as count FROM favorites WHERE target_id = ? AND target_type = 'post'",
       [postId]
     );
 
@@ -540,9 +603,9 @@ export const getPostDetail = async (req: Request, res: Response) => {
         TIMESTAMPDIFF(SECOND, p.created_at, NOW()) as time_ago,
         (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) as likes_count,
         (SELECT COUNT(*) FROM comments WHERE post_id = p.id) as comments_count,
-        (SELECT COUNT(*) FROM post_collections WHERE post_id = p.id) as collections_count,
+        (SELECT COUNT(*) FROM favorites WHERE target_id = p.id AND target_type = 'post') as collections_count,
         EXISTS(SELECT 1 FROM post_likes WHERE post_id = p.id AND user_id = ?) as is_liked,
-        EXISTS(SELECT 1 FROM post_collections WHERE post_id = p.id AND user_id = ?) as is_collected,
+        EXISTS(SELECT 1 FROM favorites WHERE target_id = p.id AND target_type = 'post' AND user_id = ?) as is_collected,
         GROUP_CONCAT(t.name) as tags
       FROM posts p
       LEFT JOIN users u ON p.author_id = u.id
@@ -561,10 +624,12 @@ export const getPostDetail = async (req: Request, res: Response) => {
       });
     }
 
-    // 格式化时间
+    // 处理附件URL并格式化时间
+    let post = (posts as any[])[0];
+    post = processPostAttachments(post);
     const formattedPost = {
-      ...(posts as any[])[0],
-      time_ago: formatTimeAgo((posts as any[])[0].time_ago),
+      ...post,
+      time_ago: formatTimeAgo(post.time_ago),
     };
 
     // 获取评论列表
@@ -785,7 +850,7 @@ export const deletePost = async (req: Request, res: Response) => {
       ]);
 
       // 删除相关的收藏记录
-      await connection.query("DELETE FROM post_collections WHERE post_id = ?", [
+      await connection.query("DELETE FROM favorites WHERE target_id = ? AND target_type = 'post'", [
         postId,
       ]);
 

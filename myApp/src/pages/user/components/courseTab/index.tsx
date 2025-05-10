@@ -1,6 +1,8 @@
 import { View } from '@tarojs/components';
+import Taro from '@tarojs/taro';
 
 import List from '@/components/list';
+import { genUrl } from '@/utils';
 
 interface CourseItem {
   id: number | string;
@@ -14,9 +16,15 @@ interface CourseTabProps {
 }
 
 export const CourseTab = ({ courseList }: CourseTabProps) => {
+  const handleItemClick = (item: CourseItem) => {
+    Taro.navigateTo({
+      url: genUrl('/pages/courseDetail/index', { id: item.id })
+    });
+  };
+
   return (
     <View className='sub-tab-container'>
-      <List contentList={courseList} />
+      <List contentList={courseList} onItemClick={handleItemClick} />
     </View>
   );
 };

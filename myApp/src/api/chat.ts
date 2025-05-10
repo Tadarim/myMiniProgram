@@ -2,45 +2,17 @@ import Taro from '@tarojs/taro';
 
 import { BASE_URL } from './constant';
 
-export interface ChatSession {
-  id: number;
-  target_id: number;
-  target_name: string;
-  target_avatar: string;
-  last_message: string;
-  last_time: string;
-  unread_count: number;
-}
-
-export interface ChatMessage {
-  id: number;
-  session_id: number;
-  sender_id: number;
-  receiver_id: number;
-  content: string;
-  type: 'text' | 'image' | 'file';
-  file_url?: string;
-  file_name?: string;
-  file_size?: number;
-  is_read: boolean;
-  created_at: string;
-  sender_name: string;
-  sender_avatar: string;
-}
-
 const getHeaders = () => {
-  const token = Taro.getStorageSync('token');
   return {
-    'Authorization': `Bearer ${token}`,
     'Cache-Control': 'no-cache',
-    'Pragma': 'no-cache'
+    Pragma: 'no-cache'
   };
 };
 
 // 获取聊天会话列表
 export const getChatSessions = () => {
   return Taro.request({
-    url: `${BASE_URL}/chat/sessions`,
+    url: '/chat/sessions',
     method: 'GET',
     header: getHeaders()
   });
@@ -49,7 +21,7 @@ export const getChatSessions = () => {
 // 获取聊天消息历史
 export const getChatMessages = (sessionId: number, page = 1, pageSize = 20) => {
   return Taro.request({
-    url: `${BASE_URL}/chat/messages/${sessionId}`,
+    url: `/chat/messages/${sessionId}`,
     method: 'GET',
     data: { page, pageSize },
     header: getHeaders()
@@ -66,7 +38,7 @@ export const sendMessage = (data: {
   fileSize?: number;
 }) => {
   return Taro.request({
-    url: `${BASE_URL}/chat/messages`,
+    url: `/chat/messages`,
     method: 'POST',
     data,
     header: getHeaders()
@@ -76,8 +48,45 @@ export const sendMessage = (data: {
 // 获取未读消息数
 export const getUnreadCount = () => {
   return Taro.request({
-    url: `${BASE_URL}/chat/unread`,
+    url: `/chat/unread`,
     method: 'GET',
     header: getHeaders()
+  });
+};
+
+// 上传聊天图片
+export const uploadChatImage = (filePath: string, sessionId: number) => {
+  const token = Taro.getStorageSync('token');
+
+  return Taro.uploadFile({
+    url: `${BASE_URL}/chat/upload`,
+    filePath,
+    name: 'file',
+    formData: {
+      type: 'chat_image',
+      sessionId
+    },
+    header: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+};
+
+// 上传聊天文件
+export const uploadChatFile = (filePath: string, fileName: string, sessionId: number) => {
+  const token = Taro.getStorageSync('token');
+
+  return Taro.uploadFile({
+    url: `${BASE_URL}/chat/upload`,
+    filePath,
+    name: 'file',
+    formData: {
+      type: 'chat_file',
+      fileName,
+      sessionId
+    },
+    header: {
+      Authorization: `Bearer ${token}`
+    }
   });
 };

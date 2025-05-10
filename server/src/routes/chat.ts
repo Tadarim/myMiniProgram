@@ -7,6 +7,13 @@ import * as chatController from "../controllers/chat";
 
 const router = express.Router();
 
+// 添加路由级别的日志中间件
+router.use((req, res, next) => {
+  console.log(`[Chat Router Internal] ${req.method} ${req.path}`);
+  console.log('Available controllers:', Object.keys(chatController));
+  next();
+});
+
 // 获取聊天会话列表
 router.get(
   "/sessions",
@@ -37,6 +44,24 @@ router.get(
   verifyTokenMiddleware(),
   setUserFromToken,
   chatController.getOrCreateSession
+);
+
+// 上传聊天图片/文件
+router.post(
+  "/upload",
+  (req, res, next) => {
+    console.log('[Upload Route] Entered upload route handler');
+    console.log('[Upload Route] req.files:', req.files);
+    next();
+  },
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  (req, res, next) => {
+    console.log('[Upload Route] After token verification');
+    console.log('[Upload Route] User:', req.user);
+    next();
+  },
+  chatController.uploadChatMedia
 );
 
 export default router;

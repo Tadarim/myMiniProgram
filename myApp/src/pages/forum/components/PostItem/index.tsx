@@ -14,7 +14,7 @@ import { Tag } from '@nutui/nutui-react-taro';
 import { useAtom } from 'jotai';
 import React, { useState, useEffect } from 'react';
 
-import { Post, deletePost, toggleLike } from '@/api/post';
+import { Post, deletePost, toggleLike, toggleCollection } from '@/api/post';
 import { postStatusMapAtom } from '@/store/post';
 
 import './index.less';
@@ -47,8 +47,8 @@ const PostItem: React.FC<PostItemProps> = ({
   const currentUserLiked = postStatus?.is_liked ?? is_liked;
   const currentLikes = postStatus?.likes_count ?? likes_count;
   const currentComments = postStatus?.comments_count ?? comments_count;
+  const currentCollected = postStatus?.is_collected ?? is_collected;
   const [isMenuVisible, setIsMenuVisible] = useState(false);
-  const [currentCollected, setCurrentCollected] = useState(is_collected);
   const [isDeleted, setIsDeleted] = useState(false);
 
   // 获取当前用户ID
@@ -56,11 +56,6 @@ const PostItem: React.FC<PostItemProps> = ({
 
   // 处理tags，确保它是一个数组
   const tagList = Array.isArray(tags) ? tags : tags ? tags.split(',') : [];
-
-  // 新增：监听props变化，自动同步
-  useEffect(() => {
-    setCurrentCollected(is_collected);
-  }, [is_collected]);
 
   const navigateToDetail = () => {
     if (isMenuVisible) {
@@ -78,15 +73,29 @@ const PostItem: React.FC<PostItemProps> = ({
     setIsMenuVisible(!isMenuVisible);
   };
 
-  const handleCollectClick = (e) => {
+  const handleCollectClick = async (e) => {
     e.stopPropagation();
-    const newCollectedStatus = !currentCollected;
-    setCurrentCollected(newCollectedStatus);
-    showToast({
-      title: newCollectedStatus ? '收藏成功' : '取消收藏',
-      icon: 'success',
-      duration: 1500
-    });
+    try {
+      const res = await toggleCollection(id);
+      setPostStatusMap((prev) => ({
+        ...prev,
+        [id]: {
+          ...prev[id],
+          is_collected: res.data.is_collected
+        }
+      }));
+      showToast({
+        title: res.data.is_collected ? '收藏成功' : '取消收藏',
+        icon: 'success',
+        duration: 1500
+      });
+    } catch (error) {
+      showToast({
+        title: '操作失败',
+        icon: 'error',
+        duration: 1500
+      });
+    }
     setIsMenuVisible(false);
   };
 
@@ -98,8 +107,8 @@ const PostItem: React.FC<PostItemProps> = ({
         ...prev,
         [id]: {
           ...prev[id],
-          is_liked: res.data.is_liked,
-          likes_count: res.data.likes_count
+          is_liked: res.data.data.is_liked,
+          likes_count: res.data.data.likes_count
         }
       }));
     } catch (error) {
@@ -206,7 +215,7 @@ const PostItem: React.FC<PostItemProps> = ({
               <View className='menu-item' onClick={handleCollectClick}>
                 {currentCollected ? (
                   <>
-                    <StarFill size={16} color='#ff9900' />
+                    <StarFill size={16} color='#FFEB3B' />
                     <Text className='menu-text'>取消收藏</Text>
                   </>
                 ) : (

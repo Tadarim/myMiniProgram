@@ -26,4 +26,5 @@ export interface PostStatus {
   is_liked: boolean;
   likes_count: number;
   comments_count: number;
+  is_collected: boolean;
 }

@@ -1,6 +1,6 @@
 import Taro, { request } from '@tarojs/taro';
 
-import { BASE_URL, API_ROUTES } from './constant';
+import { API_ROUTES } from './constant';
 import { ApiResponse, ScheduleItem } from './types';
 
 export const getScheduleList = () => {
@@ -12,7 +12,7 @@ export const getScheduleList = () => {
   }
 
   return request<ApiResponse<ScheduleItem[]>>({
-    url: `${BASE_URL}${API_ROUTES.SCHEDULE_LIST}`,
+    url: API_ROUTES.SCHEDULE_LIST,
     method: 'GET',
     header: {
       'content-type': 'application/json',
@@ -34,7 +34,7 @@ export const createSchedule = (data: {
   }
 
   return request<ApiResponse<ScheduleItem>>({
-    url: `${BASE_URL}${API_ROUTES.CREATE_SCHEDULE}`,
+    url: API_ROUTES.CREATE_SCHEDULE,
     method: 'POST',
     data,
     header: {
@@ -53,7 +53,7 @@ export const deleteSchedule = (id: string | number) => {
   }
 
   return request<ApiResponse>({
-    url: `${BASE_URL}${API_ROUTES.DELETE_SCHEDULE}${id}`,
+    url: `${API_ROUTES.DELETE_SCHEDULE}${id}`,
     method: 'DELETE',
     header: {
       'content-type': 'application/json',

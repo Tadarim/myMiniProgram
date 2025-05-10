@@ -2,7 +2,7 @@ import Taro, { request } from '@tarojs/taro';
 
 import { ApiResponse } from '../types/common';
 
-import { BASE_URL, API_ROUTES } from './constant';
+import { API_ROUTES } from './constant';
 
 import { Course } from '@/types/course';
 
@@ -41,7 +41,7 @@ export const courseService = {
       };
 
       const response = await request({
-        url: `${BASE_URL}${API_ROUTES.COURSE_LIST}`,
+        url: API_ROUTES.COURSE_LIST,
         method: 'GET',
         data: params,
         header: headers
@@ -62,7 +62,7 @@ export const courseService = {
     try {
       const token = Taro.getStorageSync('token');
       const response = await request({
-        url: `${BASE_URL}${API_ROUTES.COURSE_DETAIL}${courseId}`,
+        url: `/course/${courseId}`,
         method: 'GET',
         header: {
           Authorization: `Bearer ${token}`,
@@ -92,7 +92,7 @@ export const courseService = {
     try {
       const token = Taro.getStorageSync('token');
       const response = await request({
-        url: `${BASE_URL}/search`,
+        url: `/search`,
         method: 'GET',
         data: {
           keyword,
@@ -122,7 +122,7 @@ export const courseService = {
     try {
       const token = Taro.getStorageSync('token');
       const response = await request({
-        url: `${BASE_URL}/course/${courseId}/rate`,
+        url: `/course/${courseId}/rate`,
         method: 'POST',
         data,
         header: {
@@ -145,7 +145,7 @@ export const courseService = {
     try {
       const token = Taro.getStorageSync('token');
       const response = await request({
-        url: `${BASE_URL}/course/view`,
+        url: `/course/view`,
         data: {
           id: courseId
         },
@@ -161,6 +161,33 @@ export const courseService = {
       throw new Error(response.data.message || '更新浏览量失败');
     } catch (error) {
       console.error('Update course view_count failed:', error);
+      throw error;
+    }
+  },
+
+  // 收藏/取消收藏课程
+  async toggleCourseCollection(
+    courseId: number
+  ): Promise<
+    ApiResponse<{ collections_count: number; is_collected: boolean }>
+  > {
+    try {
+      const token = Taro.getStorageSync('token');
+      const response = await request({
+        url: `/course/${courseId}/collection`,
+        method: 'POST',
+        header: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.statusCode === 200) {
+        return response.data;
+      }
+      throw new Error(response.data.message || '收藏操作失败');
+    } catch (error) {
+      console.error('Toggle course collection failed:', error);
       throw error;
     }
   }

@@ -11,6 +11,7 @@ import {
 import { useSetAtom } from 'jotai';
 import React, { useState, useEffect } from 'react';
 
+import { addHistory } from '@/api/history';
 import {
   Post,
   Comment as CommentType,
@@ -50,10 +51,10 @@ const PostDetailPage: React.FC = () => {
       });
 
       setPostData({
-        ...postResponse.data,
-        comments: commentsResponse.data
+        ...postResponse.data.data,
+        comments: commentsResponse.data.data
       });
-      setHasMore(commentsResponse.data.length === 10);
+      setHasMore(commentsResponse.data.data.length === 10);
     } catch (error) {
       console.error('获取帖子详情失败:', error);
       Taro.showToast({ title: '加载失败', icon: 'none' });
@@ -76,12 +77,12 @@ const PostDetailPage: React.FC = () => {
         prev
           ? {
               ...prev,
-              comments: [...prev.comments, ...commentsResponse.data]
+              comments: [...prev.comments, ...commentsResponse.data.data]
             }
           : null
       );
       setPage((prev) => prev + 1);
-      setHasMore(commentsResponse.data.length === 10);
+      setHasMore(commentsResponse.data.data.length === 10);
     } catch (error) {
       console.error('获取更多评论失败:', error);
     } finally {
@@ -93,6 +94,7 @@ const PostDetailPage: React.FC = () => {
     const postId = parseInt(router.params.id || '0', 10);
     if (postId) {
       fetchPostDetail(postId);
+      addHistory(postId, 'post');
     } else {
       setLoading(false);
       Taro.showToast({ title: '无效的帖子 ID', icon: 'none' });
@@ -107,8 +109,8 @@ const PostDetailPage: React.FC = () => {
         prev
           ? {
               ...prev,
-              is_liked: result.data.is_liked,
-              likes_count: result.data.likes_count
+              is_liked: result.data.data.is_liked,
+              likes_count: result.data.data.likes_count
             }
           : null
       );
@@ -116,8 +118,8 @@ const PostDetailPage: React.FC = () => {
         ...prev,
         [postData.id]: {
           ...prev[postData.id],
-          is_liked: result.data.is_liked,
-          likes_count: result.data.likes_count
+          is_liked: result.data.data.is_liked,
+          likes_count: result.data.data.likes_count
         }
       }));
     } catch (error) {
@@ -139,6 +141,13 @@ const PostDetailPage: React.FC = () => {
             }
           : null
       );
+      setPostStatusMap((prev) => ({
+        ...prev,
+        [postData.id]: {
+          ...prev[postData.id],
+          is_collected: result.data.is_collected
+        }
+      }));
       Taro.showToast({
         title: result.data.is_collected ? '收藏成功' : '取消收藏',
         icon: 'success',
@@ -166,7 +175,7 @@ const PostDetailPage: React.FC = () => {
         prev
           ? {
               ...prev,
-              comments: [result.data, ...prev.comments],
+              comments: [result.data.data, ...prev.comments],
               comments_count: prev.comments_count + 1
             }
           : null
@@ -199,8 +208,8 @@ const PostDetailPage: React.FC = () => {
                 comment.id === commentId
                   ? {
                       ...comment,
-                      is_liked: result.data.is_liked,
-                      likes_count: result.data.likes_count
+                      is_liked: result.data.data.is_liked,
+                      likes_count: result.data.data.likes_count
                     }
                   : comment
               )

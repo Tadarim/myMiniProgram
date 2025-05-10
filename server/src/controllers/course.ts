@@ -185,11 +185,22 @@ export const getCourseDetail = async (req: Request, res: Response) => {
       })
     );
 
+    const userId = req.auth?.id || req.user?.id; // 取出当前登录用户ID
+
+    let is_collected = false;
+    if (userId) {
+      const collectSql = `
+        SELECT 1 FROM favorites WHERE user_id = ? AND target_id = ? AND target_type = 'course'
+      `;
+      const collected = await query<RowDataPacket[]>(collectSql, [userId, id]);
+      is_collected = collected.length > 0;
+    }
+
     const response: ApiResponse<Course> = {
       code: 200,
       data: {
         ...course,
-        is_collected: false, // 默认未收藏
+        is_collected,
         chapters: chaptersWithMaterials,
       },
       success: true,
@@ -805,6 +816,67 @@ export const updateCourseViewCount = async (req: Request, res: Response) => {
       code: 500,
       success: false,
       message: "更新课程浏览量失败",
+    });
+  }
+};
+
+// 收藏/取消收藏课程
+export const toggleCourseCollection = async (req: Request, res: Response) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        code: 401,
+        success: false,
+        message: "请先登录",
+      });
+    }
+
+    // 检查是否已收藏
+    const existingCollection = await query<RowDataPacket[]>(
+      "SELECT 1 FROM favorites WHERE user_id = ? AND target_id = ? AND target_type = 'course'",
+      [userId, courseId]
+    );
+    const hasCollected = existingCollection.length > 0;
+
+    if (hasCollected) {
+      // 取消收藏
+      await query(
+        "DELETE FROM favorites WHERE user_id = ? AND target_id = ? AND target_type = 'course'",
+        [userId, courseId]
+      );
+    } else {
+      // 添加收藏
+      await query(
+        "INSERT INTO favorites (user_id, target_id, target_type) VALUES (?, ?, 'course')",
+        [userId, courseId]
+      );
+    }
+
+    // 获取更新后的收藏数
+    const collectionsCountArr = await query<RowDataPacket[]>(
+      "SELECT COUNT(*) as count FROM favorites WHERE target_id = ? AND target_type = 'course'",
+      [courseId]
+    );
+    const collections_count = collectionsCountArr[0]?.count || 0;
+
+    res.json({
+      code: 200,
+      success: true,
+      data: {
+        collections_count,
+        is_collected: !hasCollected,
+      },
+      message: hasCollected ? "取消收藏成功" : "收藏成功",
+    });
+  } catch (error) {
+    console.error("操作收藏失败:", error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: "服务器错误",
     });
   }
 };

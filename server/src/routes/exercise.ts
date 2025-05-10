@@ -8,7 +8,12 @@ import {
   addQuestion,
   deleteQuestion,
   updateCompleteCount,
+  toggleExerciseCollection,
 } from "../controllers/exercise";
+import {
+  verifyTokenMiddleware,
+  setUserFromToken,
+} from "../middleware/verifyToken";
 
 const router = Router();
 
@@ -28,12 +33,20 @@ router.delete("/delete/:id", deleteExerciseSet);
 router.get("/detail/:id", getExerciseSetDetail);
 
 // 添加题目
-router.post("/:exerciseSetId/questions/add", addQuestion);
+router.post("/:exerciseSetId/questions", addQuestion);
 
 // 删除题目
 router.delete("/:exerciseSetId/questions/:questionId", deleteQuestion);
 
-// 更新完成数
+// 增加完成数量
 router.post("/:exerciseSetId/complete", updateCompleteCount);
+
+// 收藏/取消收藏
+router.post(
+  "/:exerciseId/collection",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  toggleExerciseCollection
+);
 
 export default router;

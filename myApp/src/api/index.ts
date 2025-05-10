@@ -1,4 +1,6 @@
-import { request } from '@tarojs/taro';
+import Taro, { request } from '@tarojs/taro';
+
+import { BASE_URL } from './constant';
 
 export const fetchLocation = () => {
   return request({
@@ -27,4 +29,30 @@ export const fetchBirthDayExtra = async (birthday: string) => {
     console.error('Error fetching birthday extra:', error);
     return null;
   }
+};
+
+const noAuthUrls = [
+  '/api/auth/login',
+  '/auth/send-code',
+  '/auth/reset-password',
+  '/auth/wechat-login'
+];
+
+export const authInterceptor = function (chain) {
+  const requestParams = chain.requestParams;
+  const token = Taro.getStorageSync('token');
+  const needAuth = !noAuthUrls.some((url) => requestParams.url.includes(url));
+
+  // 自动补全 baseUrl
+  if (requestParams.url && !/^https?:\/\//.test(requestParams.url)) {
+    requestParams.url = BASE_URL + requestParams.url;
+  }
+
+  if (token && needAuth) {
+    requestParams.header = {
+      ...requestParams.header,
+      Authorization: `Bearer ${token}`
+    };
+  }
+  return chain.proceed(requestParams);
 };

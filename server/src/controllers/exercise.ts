@@ -1,5 +1,6 @@
 import { Request, RequestHandler, Response } from "express";
 import pool from "../config/database";
+import { RowDataPacket } from "mysql2";
 
 // 获取习题集列表
 export const getExerciseSets: RequestHandler = async (
@@ -9,6 +10,7 @@ export const getExerciseSets: RequestHandler = async (
   try {
     const { page = 1, pageSize = 10, keyword = "" } = req.query;
     const offset = (Number(page) - 1) * Number(pageSize);
+    const userId = req.user?.id;
 
     let sql = `
       SELECT 
@@ -17,7 +19,8 @@ export const getExerciseSets: RequestHandler = async (
         es.description,
         es.created_at,
         es.updated_at,
-        (SELECT COUNT(*) FROM questions WHERE exercise_set_id = es.id) as question_count
+        (SELECT COUNT(*) FROM questions WHERE exercise_set_id = es.id) as question_count,
+        ${userId ? `EXISTS(SELECT 1 FROM favorites WHERE target_id = es.id AND target_type = 'exercise' AND user_id = ${userId}) as is_collected` : 'FALSE as is_collected'}
       FROM exercise_sets es
       WHERE 1=1
     `;
@@ -31,7 +34,7 @@ export const getExerciseSets: RequestHandler = async (
     sql += " ORDER BY es.created_at DESC LIMIT ? OFFSET ?";
     params.push(Number(pageSize), offset);
 
-    const [rows] = await pool.query(sql, params);
+    const [rows] = await pool.query<RowDataPacket[]>(sql, params);
 
     // 获取总数
     let countSql = `SELECT COUNT(*) as total FROM exercise_sets es WHERE 1=1`;
@@ -40,10 +43,10 @@ export const getExerciseSets: RequestHandler = async (
       countSql += " AND (es.title LIKE ? OR es.description LIKE ?)";
       countParams.push(`%${keyword}%`, `%${keyword}%`);
     }
-    const [countRows] = await pool.query(countSql, countParams);
+    const [countRows] = await pool.query<RowDataPacket[]>(countSql, countParams);
     let total = 0;
     if (Array.isArray(countRows) && countRows.length > 0) {
-      total = (countRows[0] as any).total || 0;
+      total = countRows[0].total || 0;
     }
 
     res.json({
@@ -174,10 +177,12 @@ export const deleteExerciseSet = async (req: Request, res: Response) => {
 export const getExerciseSetDetail = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const userId = req.user?.id;
 
-    const [exerciseSet] = await pool.query(
+    const [exerciseSet] = await pool.query<RowDataPacket[]>(
       `SELECT es.*, 
-       (SELECT COUNT(*) FROM questions WHERE exercise_set_id = es.id) as question_count
+       (SELECT COUNT(*) FROM questions WHERE exercise_set_id = es.id) as question_count,
+       ${userId ? `EXISTS(SELECT 1 FROM favorites WHERE target_id = es.id AND target_type = 'exercise' AND user_id = ${userId}) as is_collected` : 'FALSE as is_collected'}
        FROM exercise_sets es
        WHERE es.id = ?`,
       [id]
@@ -191,7 +196,7 @@ export const getExerciseSetDetail = async (req: Request, res: Response) => {
       });
     }
 
-    const [questions] = await pool.query(
+    const [questions] = await pool.query<RowDataPacket[]>(
       "SELECT * FROM questions WHERE exercise_set_id = ? ORDER BY id ASC",
       [id]
     );
@@ -350,6 +355,70 @@ export const updateCompleteCount = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error("更新完成数量失败:", error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: "服务器错误",
+    });
+  }
+};
+
+// 收藏/取消收藏习题
+export const toggleExerciseCollection = async (req: Request, res: Response) => {
+  try {
+    const { exerciseId } = req.params;
+    const userId = req.user?.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        code: 401,
+        success: false,
+        message: "请先登录",
+      });
+    }
+
+    // 将 exerciseId 转换为数字
+    const targetId = Number(exerciseId);
+
+    // 检查是否已收藏
+    const [existingCollection] = await pool.query<RowDataPacket[]>(
+      "SELECT 1 FROM favorites WHERE user_id = ? AND target_id = ? AND target_type = ?",
+      [userId, targetId, 'exercise']
+    );
+
+    const hasCollected = existingCollection.length > 0;
+
+    if (hasCollected) {
+      // 取消收藏
+      await pool.query(
+        "DELETE FROM favorites WHERE user_id = ? AND target_id = ? AND target_type = ?",
+        [userId, targetId, 'exercise']
+      );
+    } else {
+      // 添加收藏
+      await pool.query(
+        "INSERT INTO favorites (user_id, target_id, target_type) VALUES (?, ?, ?)",
+        [userId, targetId, 'exercise']
+      );
+    }
+
+    // 获取更新后的收藏数
+    const [collectionsCount] = await pool.query<RowDataPacket[]>(
+      "SELECT COUNT(*) as count FROM favorites WHERE target_id = ? AND target_type = ?",
+      [targetId, 'exercise']
+    );
+
+    res.json({
+      code: 200,
+      success: true,
+      data: {
+        collections_count: collectionsCount[0].count,
+        is_collected: !hasCollected,
+      },
+      message: hasCollected ? "取消收藏成功" : "收藏成功",
+    });
+  } catch (error) {
+    console.error("操作收藏失败:", error);
     res.status(500).json({
       code: 500,
       success: false,

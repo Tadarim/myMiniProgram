@@ -1,4 +1,5 @@
 import { View } from '@tarojs/components';
+import { useDidShow } from '@tarojs/taro';
 
 import { Tabs } from '@nutui/nutui-react-taro';
 import { useAtom } from 'jotai';
@@ -11,6 +12,9 @@ import { PostTab } from './components/postTab';
 import ProfileBg from './components/ProfileBg';
 import ProfileInfo from './components/ProfileInfo';
 
+import { getFavorites } from '@/api/favorite';
+import { getHistory } from '@/api/history';
+import { getUserStats } from '@/api/user';
 import { MyEmpty } from '@/components/empty';
 import { userAtom } from '@/store/user';
 import { Gender } from '@/types/user';
@@ -20,6 +24,103 @@ const Profile = () => {
 
   const [tab1value, setTab1value] = useState<string | number>('0');
   const [tab2value, setTab2value] = useState<string | number>('0');
+
+  const [collectData, setCollectData] = useState({
+    courseList: [],
+    exerciseList: [],
+    postList: []
+  });
+  const [collectCount, setCollectCount] = useState(0);
+
+  const [historyData, setHistoryData] = useState({
+    courseList: [],
+    exerciseList: [],
+    postList: []
+  });
+
+  // 用户统计数据
+  const [userStats, setUserStats] = useState({
+    courseCount: 0,
+    exerciseCount: 0,
+    averageScore: 0
+  });
+
+  useDidShow(() => {
+    const fetchFavorites = async () => {
+      try {
+        const res = await getFavorites();
+        const courseList = res.data.data
+          .filter((item) => item.target_type === 'course' && item.details)
+          .map((item) => item.details);
+        const exerciseList = res.data.data
+          .filter((item) => item.target_type === 'exercise' && item.details)
+          .map((item) => item.details);
+        const postList = res.data.data
+          .filter((item) => item.target_type === 'post' && item.details)
+          .map((item) => item.details);
+        setCollectData({
+          courseList,
+          exerciseList,
+          postList
+        });
+        setCollectCount(
+          courseList.length + exerciseList.length + postList.length
+        );
+      } catch (e) {
+        setCollectData({
+          courseList: [],
+          exerciseList: [],
+          postList: []
+        });
+        setCollectCount(0);
+      }
+    };
+
+    const fetchHistory = async () => {
+      try {
+        const res = await getHistory();
+        const courseList = res.data.data
+          .filter((item) => item.target_type === 'course' && item.details)
+          .map((item) => item.details);
+        const exerciseList = res.data.data
+          .filter((item) => item.target_type === 'exercise' && item.details)
+          .map((item) => item.details);
+        const postList = res.data.data
+          .filter((item) => item.target_type === 'post' && item.details)
+          .map((item) => item.details);
+        setHistoryData({
+          courseList,
+          exerciseList,
+          postList
+        });
+      } catch (e) {
+        setHistoryData({
+          courseList: [],
+          exerciseList: [],
+          postList: []
+        });
+      }
+    };
+
+    const fetchUserStats = async () => {
+      try {
+        const res = await getUserStats();
+        if (res.code === 200 && res.success) {
+          setUserStats({
+            courseCount: res.data.courseCount || 0,
+            exerciseCount: res.data.exerciseCount || 0,
+            averageScore: res.data.averageScore || 0
+          });
+        }
+      } catch (error) {
+        console.error('获取用户统计数据失败:', error);
+      }
+    };
+
+    fetchFavorites();
+    fetchHistory();
+    fetchUserStats();
+  });
 
   // 计算标签
   const extraTags = [
@@ -33,105 +134,11 @@ const Profile = () => {
 
   const tags = [...extraTags, '添加你的个性标签吧'];
 
-  const collectData = {
-    courseList: [
-      {
-        id: 1,
-        title: '软件工程',
-        cover:
-          'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=500&q=80',
-        desc: '软件工程是一门研究软件系统开发、维护和运行的学科。软件工程是一门研究软件系统开发、维护和运行的学科。软件工程是一门研究软件系统开发、维护和运行的学科。 软件工程是一门研究软件系统开发、维护和运行的学科。软件工程是一门研究软件系统开发、维护和运行的学科。'
-      }
-    ],
-    exerciseList: [
-      {
-        id: 1,
-        title: '软件工程第一章',
-        desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~',
-        cover:
-          'https://img20.360buyimg.com/openfeedback/jfs/t1/283794/20/8607/4775/67e17970Fdef6707f/af26052f0e9d5999.jpg'
-      },
-      {
-        id: 2,
-        title: '软件工程第一章',
-        desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-      },
-      {
-        id: 3,
-        title: '软件工程第一章',
-        desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-      },
-      {
-        id: 4,
-        title: '软件工程第一章',
-        desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-      }
-    ],
-    postList: [
-      {
-        id: 1,
-        title: '今天天气真好，适合出去走走',
-        cover:
-          'https://img20.360buyimg.com/openfeedback/jfs/t1/279196/32/23555/3950/68076ae7Fad3c3d68/01effe6bd1c51ce6.png'
-      }
-    ]
-  };
-
-  // 计算记录
   const records = [
-    { count: 0, text: '通过课程' },
-    { count: 0, text: '完成题库' },
-    {
-      count:
-        collectData.postList.length +
-        collectData.courseList.length +
-        collectData.exerciseList.length,
-      text: '收藏'
-    }
+    { count: userStats.courseCount, text: '学习课程' },
+    { count: userStats.exerciseCount, text: '完成题库' },
+    { count: collectCount, text: '收藏' }
   ];
-  const historyData = {
-    courseList: [
-      {
-        id: 1,
-        title: '软件工程',
-        cover:
-          'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=500&q=80',
-        desc: '软件工程是一门研究软件系统开发、维护和运行的学科。软件工程是一门研究软件系统开发、维护和运行的学科。软件工程是一门研究软件系统开发、维护和运行的学科。 软件工程是一门研究软件系统开发、维护和运行的学科。软件工程是一门研究软件系统开发、维护和运行的学科。'
-      }
-    ],
-    exerciseList: [
-      {
-        id: 1,
-        title: '软件工程第一章',
-        desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~',
-        cover:
-          'https://img20.360buyimg.com/openfeedback/jfs/t1/283794/20/8607/4775/67e17970Fdef6707f/af26052f0e9d5999.jpg'
-      },
-      {
-        id: 2,
-        title: '软件工程第一章',
-        desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-      },
-      {
-        id: 3,
-        title: '软件工程第一章',
-        desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-      },
-      {
-        id: 4,
-        title: '软件工程第一章',
-        desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-      }
-    ],
-    postList: [
-      {
-        id: 1,
-        title: '今天天气真好，适合出去走走',
-        cover:
-          'https://img20.360buyimg.com/openfeedback/jfs/t1/279196/32/23555/3950/68076ae7Fad3c3d68/01effe6bd1c51ce6.png'
-      }
-    ]
-  };
 
   const handleBgChange = (newImageUrl: string) => {
     console.log('UserPage updating bg url to:', newImageUrl);
@@ -263,7 +270,7 @@ const Profile = () => {
           >
             <Tabs.TabPane title='课程'>
               {historyData.courseList.length ? (
-                <CourseTab courseList={collectData.courseList} />
+                <CourseTab courseList={historyData.courseList} />
               ) : (
                 <MyEmpty
                   title='暂无历史课程'
@@ -274,7 +281,7 @@ const Profile = () => {
             </Tabs.TabPane>
             <Tabs.TabPane title='习题'>
               {historyData.exerciseList.length ? (
-                <ExerciseTab exerciseList={collectData.exerciseList} />
+                <ExerciseTab exerciseList={historyData.exerciseList} />
               ) : (
                 <MyEmpty
                   title='暂无历史习题'
@@ -285,7 +292,7 @@ const Profile = () => {
             </Tabs.TabPane>
             <Tabs.TabPane title='帖子'>
               {historyData.postList.length ? (
-                <PostTab postList={collectData.postList} />
+                <PostTab postList={historyData.postList} />
               ) : (
                 <MyEmpty
                   title='暂无历史帖子'

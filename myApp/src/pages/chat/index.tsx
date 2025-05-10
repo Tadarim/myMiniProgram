@@ -5,8 +5,10 @@ import { FC, useState, useEffect } from 'react';
 
 import ChatItem from './components/ChatItem';
 
-import { getChatSessions, ChatSession } from '@/api/chat';
+import { getChatSessions } from '@/api/chat';
 import NavigationBar from '@/components/navigationBar';
+import { ChatSession } from '@/types/chat';
+
 import './index.less';
 
 const ChatPage: FC = () => {
@@ -18,7 +20,6 @@ const ChatPage: FC = () => {
       setLoading(true);
       const res = await getChatSessions();
       if (res.statusCode === 200 && res.data.code === 200) {
-        // 使用 data.data 获取实际的会话列表
         setChatList(res.data.data || []);
       } else {
         setChatList([]);
@@ -53,7 +54,7 @@ const ChatPage: FC = () => {
         chat.target_id
       }&name=${encodeURIComponent(
         chat.target_name || ''
-      )}&avatar=${encodeURIComponent(chat.target_avatar || '')}`
+      )}&avatar=${encodeURIComponent(chat.target_avatar || '')}&type=${chat.type}`
     });
   };
 
@@ -70,10 +71,14 @@ const ChatPage: FC = () => {
               avatar={chat.target_avatar || ''}
               name={chat.target_name || '未知用户'}
               lastMessage={chat.last_message || ''}
-              time={chat.last_time ? new Date(chat.last_time).toLocaleTimeString('zh-CN', {
-                hour: '2-digit',
-                minute: '2-digit'
-              }) : ''}
+              time={
+                chat.last_time
+                  ? new Date(chat.last_time).toLocaleTimeString('zh-CN', {
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                  : ''
+              }
               unreadCount={chat.unread_count || 0}
               onClick={() => handleChatClick(chat)}
             />

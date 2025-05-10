@@ -11,14 +11,14 @@ export const getSchedules = async (req: Request, res: Response) => {
 
     // 获取当前时间
     const now = new Date();
-    const currentTime = now.toISOString().slice(0, 19).replace('T', ' ');
+    const currentTime = now.toISOString().slice(0, 19).replace("T", " ");
 
     // 只查询未过期的日程（结束时间大于当前时间）
     const [rows] = await pool.query(
       `SELECT * FROM schedules 
-       WHERE user_id = ? 
-       AND STR_TO_DATE(SUBSTRING_INDEX(time, ' - ', -1), '%Y/%m/%d %H:%i:%s') > ?
-       ORDER BY STR_TO_DATE(SUBSTRING_INDEX(time, ' - ', 1), '%Y/%m/%d %H:%i:%s') ASC`,
+        WHERE user_id = ? 
+        AND STR_TO_DATE(SUBSTRING_INDEX(time, ' - ', -1), '%Y/%m/%d %H:%i:%s') > ?
+        ORDER BY STR_TO_DATE(SUBSTRING_INDEX(time, ' - ', 1), '%Y/%m/%d %H:%i:%s') ASC`,
       [userId, currentTime]
     );
 
@@ -124,4 +124,3 @@ export const deleteSchedule = async (req: Request, res: Response) => {
     });
   }
 };
- 

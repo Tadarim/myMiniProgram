@@ -1,14 +1,17 @@
-import { useDidShow, useDidHide, useLaunch } from '@tarojs/taro';
+import Taro, { useDidShow, useDidHide, useLaunch } from '@tarojs/taro';
 
 import { Provider } from 'jotai';
 import { useEffect } from 'react';
 
 // 全局样式
-import './app.less';
+import { authInterceptor } from '@/api';
 import { useNavigationBar } from '@/hooks/useNavigationBar';
+
+import './app.less';
 
 function App(props) {
   const { initNavigationBar } = useNavigationBar();
+  Taro.addInterceptor(authInterceptor);
   // 可以使用所有的 React Hooks
   useEffect(() => {});
 

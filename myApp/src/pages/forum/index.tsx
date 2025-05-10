@@ -39,33 +39,35 @@ const ForumPage: React.FC = () => {
       });
 
       if (pageNum === 1) {
-        setPosts(response.data);
+        setPosts(response.data.data);
         const statusMap: Record<number, PostStatus> = {};
-        response.data.forEach((post) => {
+        response.data.data.forEach((post) => {
           statusMap[post.id] = {
             id: post.id,
             is_liked: post.is_liked,
             likes_count: post.likes_count,
-            comments_count: post.comments_count
+            comments_count: post.comments_count,
+            is_collected: post.is_collected
           };
         });
         setPostStatusMap(statusMap);
       } else {
-        setPosts((prev) => [...prev, ...response.data]);
+        setPosts((prev) => [...prev, ...response.data.data]);
         setPostStatusMap((prev) => {
           const newMap = { ...prev };
-          response.data.forEach((post) => {
+          response.data.data.forEach((post) => {
             newMap[post.id] = {
               id: post.id,
               is_liked: post.is_liked,
               likes_count: post.likes_count,
-              comments_count: post.comments_count
+              comments_count: post.comments_count,
+              is_collected: post.is_collected
             };
           });
           return newMap;
         });
       }
-      setTotal(response.total || 0);
+      setTotal(response.data.total || 0);
     } catch (error) {
       console.error('获取帖子失败:', error);
       Taro.showToast({
@@ -114,7 +116,7 @@ const ForumPage: React.FC = () => {
         attachments
       });
 
-      setPosts((prev) => [response.data, ...prev]);
+      setPosts((prev) => [response.data.data, ...prev]);
       setIsPopupShow(false);
       Taro.showToast({
         title: '发布成功',

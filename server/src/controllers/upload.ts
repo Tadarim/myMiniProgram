@@ -126,7 +126,7 @@ async function uploadToQiniu(
         console.log("上传响应信息:", info);
 
         // 生成私有下载链接
-        const deadline = Math.floor(Date.now() / 1000) + 3600; // 1小时有效期
+        const deadline = Math.floor(Date.now() / 1000) + 86400; // 24小时有效期
         const bucketManager = new qiniu.rs.BucketManager(mac, config);
         
         // 确保域名格式正确
