@@ -7,7 +7,7 @@ import {
   LearningStyle,
   TimePreference,
   LearningProfile,
-  UserRow
+  UserRow,
 } from "../types/user";
 import { query } from "../utils/query";
 import { RowDataPacket } from "mysql2";
@@ -391,30 +391,15 @@ export const getUserStats = async (req: Request, res: Response) => {
       [userId]
     );
 
-    // 5. 获取用户完成题库的平均分数（如果有相关表）
-    let averageScore = 0;
-    try {
-      const [scoreResult] = await pool.query<RowDataPacket[]>(
-        `SELECT AVG(score) as averageScore 
-         FROM exercise_scores 
-         WHERE user_id = ?`,
-        [userId]
-      );
-      averageScore = scoreResult[0]?.averageScore || 0;
-    } catch (error) {
-      console.log("获取平均分数失败，可能没有相关表:", error);
-    }
-
     res.json({
       code: 200,
       success: true,
       data: {
         courseCount,
         exerciseCount,
-        averageScore,
         recentCourses,
-        recentExercises
-      }
+        recentExercises,
+      },
     });
   } catch (error) {
     console.error("获取用户统计数据失败:", error);

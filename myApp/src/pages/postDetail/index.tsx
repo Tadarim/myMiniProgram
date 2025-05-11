@@ -11,6 +11,7 @@ import {
 import { useSetAtom } from 'jotai';
 import React, { useState, useEffect } from 'react';
 
+import { getOrCreateSession } from '@/api/chat';
 import { addHistory } from '@/api/history';
 import {
   Post,
@@ -197,31 +198,6 @@ const PostDetailPage: React.FC = () => {
     }
   };
 
-  const handleCommentLike = async (commentId: number) => {
-    try {
-      const result = await toggleCommentLike(commentId);
-      setPostData((prev) =>
-        prev
-          ? {
-              ...prev,
-              comments: prev.comments.map((comment) =>
-                comment.id === commentId
-                  ? {
-                      ...comment,
-                      is_liked: result.data.data.is_liked,
-                      likes_count: result.data.data.likes_count
-                    }
-                  : comment
-              )
-            }
-          : null
-      );
-    } catch (error) {
-      console.error('点赞评论失败:', error);
-      Taro.showToast({ title: '操作失败', icon: 'none' });
-    }
-  };
-
   const getFileExt = (url) => {
     const cleanUrl = url.split('?')[0];
     return cleanUrl.split('.').pop().toLowerCase();
@@ -264,6 +240,71 @@ const PostDetailPage: React.FC = () => {
     }
   };
 
+  const handleUserClick = async (userId: number) => {
+    // 记录用户点击事件
+    console.log('用户点击事件触发，传入ID:', userId, '类型:', typeof userId);
+    console.log(
+      '帖子作者ID对比 - 传入ID:',
+      userId,
+      '帖子author_id:',
+      postData?.author_id
+    );
+
+    // 从本地存储获取当前用户ID
+    const currentUserInfo = Taro.getStorageSync('userInfo') || {};
+    const currentUserId = currentUserInfo.id;
+    console.log('当前登录用户ID:', currentUserId);
+
+    // 如果点击的不是当前用户，则尝试创建会话并跳转
+    if (userId !== currentUserId) {
+      try {
+        // 确保userId是数字类型
+        const targetUserId = Number(userId);
+        console.log(
+          '处理后的目标用户ID:',
+          targetUserId,
+          '类型:',
+          typeof targetUserId
+        );
+
+        Taro.showLoading({ title: '正在准备聊天...' });
+
+        // 先尝试创建/获取会话
+        const res = await getOrCreateSession(targetUserId);
+
+        console.log('创建会话结果:', res);
+        Taro.hideLoading();
+
+        if (res.statusCode === 200 && res.data.code === 200) {
+          const sessionId = res.data.data.id;
+          const targetName = postData?.username || '用户';
+
+          if (!sessionId || typeof sessionId !== 'number') {
+            throw new Error('服务器返回了无效的会话ID');
+          }
+
+          const chatUrl = `/pages/chatRoom/index?sessionId=${sessionId}&targetId=${targetUserId}&name=${encodeURIComponent(
+            targetName
+          )}&type=single`;
+
+          Taro.navigateTo({
+            url: chatUrl
+          });
+        } else {
+          throw new Error(res.data.message || '无法创建聊天');
+        }
+      } catch (error) {
+        console.error('创建聊天失败:', error);
+        Taro.hideLoading();
+        Taro.showToast({
+          title: '无法与该用户聊天',
+          icon: 'none',
+          duration: 2000
+        });
+      }
+    }
+  };
+
   if (loading) {
     return <View className='loading-placeholder'>加载中...</View>;
   }
@@ -282,9 +323,18 @@ const PostDetailPage: React.FC = () => {
         onScrollToLower={fetchMoreComments}
       >
         <View className='author-info'>
-          <Image className='avatar' src={postData.avatar} />
+          <Image
+            className='avatar'
+            src={postData.avatar}
+            onClick={() => handleUserClick(postData.author_id)}
+          />
           <View className='name-time'>
-            <Text className='username'>{postData.username}</Text>
+            <Text
+              className='username'
+              onClick={() => handleUserClick(postData.author_id)}
+            >
+              {postData.username}
+            </Text>
             <Text className='time-ago'>{postData.time_ago}</Text>
           </View>
         </View>
@@ -360,10 +410,19 @@ const PostDetailPage: React.FC = () => {
           {postData.comments.length > 0 ? (
             postData.comments.map((comment) => (
               <View key={comment.id} className='comment-item'>
-                <Image className='comment-avatar' src={comment.avatar} />
+                <Image
+                  className='comment-avatar'
+                  src={comment.avatar}
+                  onClick={() => handleUserClick(comment.author_id)}
+                />
                 <View className='comment-body'>
                   <View className='comment-header'>
-                    <Text className='comment-username'>{comment.username}</Text>
+                    <Text
+                      className='comment-username'
+                      onClick={() => handleUserClick(comment.author_id)}
+                    >
+                      {comment.username}
+                    </Text>
                     <Text className='comment-time'>{comment.time_ago}</Text>
                   </View>
                   <Text className='comment-content'>{comment.content}</Text>

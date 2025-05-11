@@ -7,13 +7,6 @@ import * as chatController from "../controllers/chat";
 
 const router = express.Router();
 
-// 添加路由级别的日志中间件
-router.use((req, res, next) => {
-  console.log(`[Chat Router Internal] ${req.method} ${req.path}`);
-  console.log('Available controllers:', Object.keys(chatController));
-  next();
-});
-
 // 获取聊天会话列表
 router.get(
   "/sessions",
@@ -50,18 +43,82 @@ router.get(
 router.post(
   "/upload",
   (req, res, next) => {
-    console.log('[Upload Route] Entered upload route handler');
-    console.log('[Upload Route] req.files:', req.files);
+    console.log("[Upload Route] Entered upload route handler");
+    console.log("[Upload Route] req.files:", req.files);
     next();
   },
   verifyTokenMiddleware(),
   setUserFromToken,
   (req, res, next) => {
-    console.log('[Upload Route] After token verification');
-    console.log('[Upload Route] User:', req.user);
+    console.log("[Upload Route] After token verification");
+    console.log("[Upload Route] User:", req.user);
     next();
   },
   chatController.uploadChatMedia
+);
+
+// 创建群组
+router.post(
+  "/group",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  chatController.createGroup
+);
+
+// 获取群组信息
+router.get(
+  "/group/:groupId",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  chatController.getGroupInfo
+);
+
+// 加入群组
+router.post(
+  "/group/:groupId/join",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  chatController.joinGroup
+);
+
+// 退出群组
+router.post(
+  "/group/:groupId/leave",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  chatController.leaveGroup
+);
+
+// 解散群组（仅群主可操作）
+router.post(
+  "/group/:groupId/dissolve",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  chatController.dissolveGroup
+);
+
+// 获取我的群组列表
+router.get(
+  "/my-groups",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  chatController.getMyGroups
+);
+
+// 搜索群组
+router.get(
+  "/search-groups",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  chatController.searchGroups
+);
+
+// 搜索群组 (新路径)
+router.get(
+  "/groups/search",
+  verifyTokenMiddleware(),
+  setUserFromToken,
+  chatController.searchGroups
 );
 
 export default router;

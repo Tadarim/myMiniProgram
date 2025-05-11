@@ -25,4 +25,5 @@ export interface ChatMessage {
   file_size?: number;
   file_url?: string;
   needs_url_fetch?: boolean;
+  message_type?: string;
 }

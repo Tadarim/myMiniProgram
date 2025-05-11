@@ -1,5 +1,16 @@
 @import '@/static/styles/variables.less';
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .chatroom-container {
   display: flex;
   flex-direction: column;
@@ -27,6 +38,42 @@
   margin-bottom: 15px;
   display: flex;
   align-items: center;
+
+  &.system {
+    justify-content: center;
+    margin: 15px 0;
+
+    .system-message {
+      display: inline-flex;
+      align-items: center;
+      background-color: rgba(73, 148, 255, 0.08);
+      border-radius: 18px;
+      padding: 8px 15px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      max-width: 85%;
+      animation: fadeIn 0.3s ease;
+      border: 1px solid rgba(73, 148, 255, 0.15);
+
+      .system-text {
+        font-size: 13px;
+        color: #4980c9;
+        text-align: center;
+        line-height: 1.4;
+        font-weight: 500;
+      }
+
+      &::before {
+        content: '';
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background-color: #4994ff;
+        margin-right: 8px;
+        box-shadow: 0 0 0 2px rgba(73, 148, 255, 0.2);
+      }
+    }
+  }
 
   &.self {
     align-items: flex-end;

@@ -1,8 +1,8 @@
-import { View, Text, Checkbox, CheckboxGroup } from '@tarojs/components';
+import { View, Text, Checkbox, Radio, CheckboxGroup, RadioGroup } from '@tarojs/components';
 import { showToast, useRouter } from '@tarojs/taro';
 
 import { Star, StarFill, Success } from '@nutui/icons-react-taro';
-import { Dialog, Radio } from '@nutui/nutui-react-taro';
+import { Dialog } from '@nutui/nutui-react-taro';
 import React, { useState, useEffect } from 'react';
 
 import { exerciseService } from '@/api/exercise';
@@ -50,12 +50,9 @@ const ExerciseDetail: React.FC = () => {
     }
   }, [router]);
 
-  const handleSingleSelect = (value: string) => {
-    if (selectedAnswer.length > 0 && selectedAnswer[0] === value) {
-      setSelectedAnswer([]);
-    } else {
-      setSelectedAnswer([value]);
-    }
+  const handleSingleSelect = (e) => {
+    const value = e.detail.value;
+    setSelectedAnswer([value]);
   };
 
   const handleMultiSelect = (e) => {
@@ -162,49 +159,75 @@ const ExerciseDetail: React.FC = () => {
 
       <View className='options-list'>
         {currentQuestion?.type === 'single' ? (
-          <Radio.Group disabled={showAnswer}>
+          <RadioGroup
+            className='radio-group'
+          >
             {currentQuestion?.options.map((option, index) => (
               <View
                 key={option}
                 className='option-wrapper'
-                onClick={() => handleSingleSelect(option)}
+                onClick={() => {
+                  if (!showAnswer) {
+                    setSelectedAnswer([option]);
+                  }
+                }}
               >
-                <Radio
-                  value={option}
-                  checked={selectedAnswer.includes(option)}
-                  className='option-item'
-                >
+                <View className='option-inner'>
+                  <Radio
+                    value={option}
+                    checked={selectedAnswer.includes(option)}
+                    disabled={showAnswer}
+                    className='radio-item'
+                  />
                   <View className='option-content'>
                     <Text className='option-label'>
                       {String.fromCharCode(index + 65)}
                     </Text>
                     <Text className='option-text'>{option}</Text>
                   </View>
-                </Radio>
+                </View>
               </View>
             ))}
-          </Radio.Group>
+          </RadioGroup>
         ) : (
-          <CheckboxGroup onChange={handleMultiSelect}>
+          <CheckboxGroup
+            className='checkbox-group'
+          >
             {currentQuestion?.options.map((option, index) => (
-              <View key={option} className='option-wrapper'>
-                <Checkbox
-                  value={option}
-                  checked={
-                    showAnswer
-                      ? answers.flat(1).includes(option)
-                      : selectedAnswer.includes(option)
+              <View
+                key={option}
+                className='option-wrapper'
+                onClick={() => {
+                  if (!showAnswer) {
+                    const newSelected = [...selectedAnswer];
+                    const index = newSelected.indexOf(option);
+                    if (index > -1) {
+                      newSelected.splice(index, 1);
+                    } else {
+                      newSelected.push(option);
+                    }
+                    setSelectedAnswer(newSelected);
                   }
-                  disabled={showAnswer}
-                  className='option-item'
-                >
+                }}
+              >
+                <View className='option-inner'>
+                  <Checkbox
+                    value={option}
+                    checked={
+                      showAnswer
+                        ? answers.flat(1).includes(option)
+                        : selectedAnswer.includes(option)
+                    }
+                    disabled={showAnswer}
+                    className='checkbox-item'
+                  />
                   <View className='option-content'>
                     <Text className='option-label'>
                       {String.fromCharCode(index + 65)}
                     </Text>
                     <Text className='option-text'>{option}</Text>
                   </View>
-                </Checkbox>
+                </View>
               </View>
             ))}
           </CheckboxGroup>

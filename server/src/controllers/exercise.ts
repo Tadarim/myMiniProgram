@@ -426,3 +426,39 @@ export const toggleExerciseCollection = async (req: Request, res: Response) => {
     });
   }
 };
+
+// 获取热门习题集（按浏览量排序）
+export const getPopularExercises = async (req: Request, res: Response) => {
+  try {
+    const { limit = 5 } = req.query;
+    const userId = req.user?.id;
+
+    const [exercises] = await pool.query<RowDataPacket[]>(
+      `SELECT 
+        es.id,
+        es.title,
+        es.description,
+        es.complete_count,
+        (SELECT COUNT(*) FROM questions WHERE exercise_set_id = es.id) as question_count,
+        ${userId ? `EXISTS(SELECT 1 FROM favorites WHERE target_id = es.id AND target_type = 'exercise' AND user_id = ${userId}) as is_collected` : 'FALSE as is_collected'}
+      FROM exercise_sets es
+      ORDER BY es.complete_count DESC
+      LIMIT ?`,
+      [Number(limit)]
+    );
+
+    res.json({
+      code: 200,
+      success: true,
+      data: exercises,
+      message: "获取成功",
+    });
+  } catch (error) {
+    console.error("获取热门习题集失败:", error);
+    res.status(500).json({
+      code: 500,
+      success: false,
+      message: "服务器错误",
+    });
+  }
+};

@@ -8,6 +8,7 @@ import Course from './components/course';
 import Navigation from './components/navigation';
 
 import { courseService } from '@/api/course';
+import { exerciseService } from '@/api/exercise';
 import Banner from '@/components/banner';
 import List from '@/components/list';
 import NavigationBar from '@/components/navigationBar';
@@ -19,6 +20,8 @@ import './index.less';
 
 function Index() {
   const [courseList, setCourseList] = useState<CourseType[]>([]);
+  const [hotExerciseList, setHotExerciseList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const handleExerciseClick = (exercise) => {
     navigateTo({
@@ -28,31 +31,6 @@ function Index() {
       })
     });
   };
-
-  const mockList = [
-    {
-      title: '软件工程第一章',
-      desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~',
-      cover:
-        'https://img20.360buyimg.com/openfeedback/jfs/t1/283794/20/8607/4775/67e17970Fdef6707f/af26052f0e9d5999.jpg'
-    },
-    {
-      title: '软件工程第一章',
-      desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-    },
-    {
-      title: '软件工程第一章',
-      desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-    },
-    {
-      title: '软件工程第一章',
-      desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-    },
-    {
-      title: '软件工程第一章',
-      desc: '这是软件工程的第一张题目喔~这是软件工程的第一张题目喔~'
-    }
-  ];
 
   useEffect(() => {
     const token = getStorageSync('token');
@@ -68,7 +46,22 @@ function Index() {
       setCourseList(res.data.slice(0, 4));
     };
 
+    const fetchHotExercises = async () => {
+      try {
+        setLoading(true);
+        const res = await exerciseService.getPopularExercises(5);
+        if (res.code === 200 && res.success) {
+          setHotExerciseList(res.data);
+        }
+      } catch (error) {
+        console.error('获取热门题库失败', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCourseList();
+    fetchHotExercises();
   }, []);
 
   return (
@@ -91,7 +84,8 @@ function Index() {
           }}
         />
         <List
-          contentList={mockList}
+          contentList={hotExerciseList}
+          loading={loading}
           onItemClick={handleExerciseClick}
           itemSuffix={() => (
             <View

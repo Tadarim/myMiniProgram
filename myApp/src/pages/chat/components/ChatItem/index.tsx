@@ -1,39 +1,50 @@
 import { View, Text, Image } from '@tarojs/components'
 
-import { FC } from 'react'
+import React from 'react'
 
 import './index.less'
 
-export interface ChatItemProps {
+interface ChatItemProps {
   avatar: string;
   name: string;
   lastMessage: string;
   time: string;
-  unreadCount?: number;
-  onClick?: () => void;
+  unreadCount: number;
+  isGroup?: boolean;
+  onClick: () => void;
 }
 
-const ChatItem: FC<ChatItemProps> = ({
+const ChatItem: React.FC<ChatItemProps> = ({
   avatar,
   name,
   lastMessage,
   time,
-  unreadCount = 0,
+  unreadCount,
+  isGroup = false,
   onClick
 }) => {
   return (
     <View className='chat-item' onClick={onClick}>
-      <Image className='avatar' src={avatar} mode='aspectFill' />
-      <View className='content'>
-        <View className='header'>
+      <View className='avatar-container'>
+        <Image
+          className={`avatar ${isGroup ? 'group-avatar' : ''}`}
+          src={avatar || 'https://placekitten.com/100/100'}
+          mode='aspectFill'
+        />
+        {isGroup && <View className='group-icon'>群</View>}
+      </View>
+      <View className='chat-info'>
+        <View className='name-time'>
           <Text className='name'>{name}</Text>
-          <Text className='time'>{time}</Text>
+          {time && <Text className='time'>{time}</Text>}
         </View>
-        <View className='footer'>
-          <Text className='message'>{lastMessage}</Text>
+        <View className='message-unread'>
+          <Text className='message' numberOfLines={1}>{lastMessage}</Text>
           {unreadCount > 0 && (
             <View className='unread-badge'>
-              <Text className='unread-count'>{unreadCount}</Text>
+              <Text className='unread-count'>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </Text>
             </View>
           )}
         </View>

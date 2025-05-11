@@ -15,7 +15,9 @@ import {
   sendMessage,
   uploadChatImage,
   uploadChatFile,
-  getFileUrl
+  getOrCreateSession,
+  leaveGroup,
+  dissolveGroup
 } from '@/api/chat';
 import NavigationBar from '@/components/navigationBar';
 import { ChatMessage } from '@/types/chat';
@@ -33,6 +35,7 @@ interface Message {
   avatar: string;
   name: string;
   needs_url_fetch?: boolean;
+  isSystem?: boolean;
 }
 
 const EMOJI_LIST = [
@@ -124,7 +127,6 @@ const EMOJI_LIST = [
 
 const ChatRoom: FC = () => {
   const router = useRouter();
-  const { id: sessionId, name, type } = router.params;
   const scrollViewRef = useRef<any>(null);
 
   const [inputValue, setInputValue] = useState('');
@@ -136,20 +138,104 @@ const ChatRoom: FC = () => {
   const [page, setPage] = useState(1);
   const [isFirstLoad, setIsFirstLoad] = useState(true);
   const [scrollTop, setScrollTop] = useState(0);
-  const isGroupChat = type === 'group';
+  const [sessionId, setSessionId] = useState<number | null>(null);
+  const [targetName, setTargetName] = useState<string>('聊天'); // 添加目标用户名状态
+  const isGroupChat = router.params.type === 'group';
+  const [isGroupAdmin, setIsGroupAdmin] = useState(false); // 添加是否是群主的状态
 
   const panelHeight = 260;
   const inputHeight = 60;
-  const navHeight = 84;
+
+  // 创建或获取会话
+  const createOrGetSession = async () => {
+    try {
+      Taro.showLoading({ title: '加载中...' });
+
+      // 获取targetId - 目标用户ID
+      let targetUserId;
+
+      // 优先从targetId参数获取（从帖子详情页等跳转）
+      if (router.params.targetId) {
+        targetUserId = parseInt(router.params.targetId, 10);
+      }
+      // 其次从id参数获取（从用户列表页等跳转，且type是'single'）
+      else if (router.params.id && router.params.type === 'single') {
+        targetUserId = parseInt(router.params.id, 10);
+      } else {
+        throw new Error('缺少目标用户ID');
+      }
+
+      if (Number.isNaN(targetUserId) || targetUserId <= 0) {
+        throw new Error('无效的用户ID');
+      }
+
+      const res = await getOrCreateSession(targetUserId);
+      if (res.statusCode === 200 && res.data.code === 200) {
+        const newSessionId = res.data.data.id;
+
+        if (res.data.data.target_name) {
+          setTargetName(res.data.data.target_name);
+        }
+
+        // 同步更新会话ID（不使用异步的setState）
+        return newSessionId;
+      } else {
+        throw new Error(`创建会话失败: ${res.data.message || '未知错误'}`);
+      }
+    } catch (error) {
+      console.error('创建/获取会话失败:', error);
+      Taro.showToast({
+        title: '创建会话失败',
+        icon: 'none'
+      });
+      return null;
+    } finally {
+      Taro.hideLoading();
+    }
+  };
 
   const fetchMessages = async (
     pageNum: number = 1,
-    isLoadMore: boolean = false
+    isLoadMore: boolean = false,
+    providedSessionId?: number | null
   ) => {
     try {
       setLoading(true);
-      const res = await getChatMessages(Number(sessionId), pageNum);
+
+      // 优先使用提供的sessionId，否则使用状态中的sessionId
+      const chatSessionId =
+        providedSessionId !== undefined ? providedSessionId : sessionId;
+
+      if (
+        !chatSessionId ||
+        typeof chatSessionId !== 'number' ||
+        chatSessionId <= 0
+      ) {
+        console.error('没有有效的会话ID，无法获取消息');
+        Taro.showToast({
+          title: '无法获取消息',
+          icon: 'none'
+        });
+        return;
+      }
+
+      console.log(`获取会话[${chatSessionId}]的消息，页码:${pageNum}`);
+
+      const res = await getChatMessages(chatSessionId, pageNum);
       if (res.statusCode === 200 && res.data.code === 200) {
+        // 验证消息属于当前会话
+        const currentSessionId = sessionId;
+        if (currentSessionId && currentSessionId !== chatSessionId) {
+          console.warn(
+            '会话ID不匹配，期望:',
+            currentSessionId,
+            '实际:',
+            chatSessionId
+          );
+          // 如果当前会话ID已经改变，忽略这次请求的结果
+          return;
+        }
+
         const formattedMessages = res.data.data.map((msg: ChatMessage) => ({
           id: msg.id,
           type: msg.type,
@@ -163,7 +249,8 @@ const ChatRoom: FC = () => {
           name: msg.sender_name,
           fileName: msg.file_name,
           fileSize: msg.file_size,
-          needs_url_fetch: msg.needs_url_fetch
+          needs_url_fetch: msg.needs_url_fetch,
+          isSystem: msg.message_type === 'system'
         }));
 
         if (isLoadMore) {
@@ -174,6 +261,12 @@ const ChatRoom: FC = () => {
 
         setHasMore(formattedMessages.length === 20);
         setPage(pageNum);
+      } else {
+        console.error('获取消息失败:', res.data.message || '未知错误');
+        Taro.showToast({
+          title: '获取消息失败',
+          icon: 'none'
+        });
       }
     } catch (error) {
       console.error('获取消息失败:', error);
@@ -186,8 +279,252 @@ const ChatRoom: FC = () => {
     }
   };
 
+  const initChat = async () => {
+    if (router.params.name) {
+      try {
+        const decodedName = decodeURIComponent(router.params.name);
+        setTargetName(decodedName);
+      } catch (e) {
+        setTargetName(router.params.name);
+      }
+    }
+
+    // 处理群聊
+    if (router.params.type === 'group') {
+      const groupId = parseInt(router.params.id || '0', 10);
+      const sessionIdFromParams = parseInt(router.params.sessionId || '0', 10);
+
+      if (!Number.isNaN(groupId) && groupId > 0) {
+        // 优先使用传入的sessionId，否则根据规则计算
+        const actualSessionId =
+          !Number.isNaN(sessionIdFromParams) && sessionIdFromParams > 0
+            ? sessionIdFromParams
+            : groupId + 29; // 群组会话ID规则：群组ID+29
+
+        setSessionId(actualSessionId);
+        fetchGroupMessages(groupId, 1, false, actualSessionId);
+      } else {
+        Taro.showToast({
+          title: '无效的群组ID',
+          icon: 'none'
+        });
+        setTimeout(() => Taro.navigateBack(), 1500);
+      }
+      return;
+    }
+
+    // 处理单聊（私聊）
+    // 优先使用sessionId参数（从帖子详情页跳转时使用）
+    if (router.params.sessionId) {
+      // 使用多种方法尝试解析sessionId
+      let sessionIdValue;
+      try {
+        // 直接从URL获取原始值
+        const rawSessionId = router.params.sessionId;
+
+        // 尝试直接转换为数字
+        sessionIdValue = parseInt(String(rawSessionId).trim(), 10);
+
+        if (Number.isNaN(sessionIdValue) || sessionIdValue <= 0) {
+          throw new Error('无效的会话ID值');
+        }
+
+        // 设置会话ID状态
+        setSessionId(sessionIdValue);
+
+        // 获取消息（等待状态更新后再获取）
+        setTimeout(() => {
+          fetchMessages(1, false, sessionIdValue);
+        }, 100);
+      } catch (error) {
+        Taro.showToast({
+          title: '无效的会话',
+          icon: 'none'
+        });
+        setTimeout(() => Taro.navigateBack(), 1500);
+      }
+    }
+    // 从消息列表页面跳转时使用id作为会话ID
+    else if (router.params.id && router.params.type !== 'single') {
+      try {
+        // 直接使用id作为会话ID
+        const sessionIdValue = parseInt(String(router.params.id).trim(), 10);
+
+        if (Number.isNaN(sessionIdValue) || sessionIdValue <= 0) {
+          throw new Error('无效的会话ID值');
+        }
+
+        // 设置会话ID状态
+        setSessionId(sessionIdValue);
+
+        // 获取消息（等待状态更新后再获取）
+        setTimeout(() => {
+          fetchMessages(1, false, sessionIdValue);
+        }, 100);
+      } catch (error) {
+        Taro.showToast({
+          title: '无效的会话',
+          icon: 'none'
+        });
+        setTimeout(() => Taro.navigateBack(), 1500);
+      }
+    }
+    // 尝试创建会话（从用户主页或需要新建会话的地方跳转）
+    else if (
+      router.params.needCreate === 'true' ||
+      router.params.targetId ||
+      (router.params.id && router.params.type === 'single')
+    ) {
+      console.log('尝试创建会话');
+
+      // 获取targetId - 目标用户ID
+      let targetUserId;
+
+      // 优先从targetId参数获取（从帖子详情页等跳转）
+      if (router.params.targetId) {
+        targetUserId = parseInt(router.params.targetId, 10);
+      }
+      // 其次从id参数获取（从用户列表页等跳转，且type是'single'）
+      else if (router.params.id && router.params.type === 'single') {
+        targetUserId = parseInt(router.params.id, 10);
+      }
+
+      if (!targetUserId || Number.isNaN(targetUserId) || targetUserId <= 0) {
+        console.error('无效的目标用户ID:', targetUserId);
+        Taro.showToast({
+          title: '无法创建会话',
+          icon: 'none'
+        });
+        setTimeout(() => Taro.navigateBack(), 1500);
+        return;
+      }
+
+      // 首先从本地缓存中查找会话ID
+      const chatSessionsCache = Taro.getStorageSync('chatSessionsCache') || {};
+      const cachedSession = chatSessionsCache[`user_${targetUserId}`];
+
+      // 检查会话缓存是否有效（30分钟内）
+      if (
+        cachedSession &&
+        Date.now() - cachedSession.timestamp < 30 * 60 * 1000
+      ) {
+        console.log('从缓存获取会话信息:', cachedSession);
+
+        // 设置会话ID
+        const newSessionId = cachedSession.data.id;
+        setSessionId(newSessionId);
+
+        // 设置目标用户名（如果有）
+        if (cachedSession.data.target_name) {
+          setTargetName(cachedSession.data.target_name);
+        }
+
+        // 获取消息
+        fetchMessages(1, false, newSessionId);
+
+        return;
+      }
+
+      // 没有有效缓存，创建新会话
+      const newSessionId = await createOrGetSession();
+
+      console.log('会话创建成功:', newSessionId);
+
+      if (newSessionId) {
+        // 缓存会话ID
+        if (targetUserId) {
+          // 更新chatSessionsCache
+          chatSessionsCache[`user_${targetUserId}`] = {
+            data: {
+              id: newSessionId,
+              target_id: targetUserId,
+              target_name: targetName
+            },
+            timestamp: Date.now()
+          };
+          Taro.setStorageSync('chatSessionsCache', chatSessionsCache);
+
+          // 兼容旧缓存
+          const sessions = Taro.getStorageSync('chatSessions') || {};
+          sessions[`user_${targetUserId}`] = newSessionId;
+          Taro.setStorageSync('chatSessions', sessions);
+        }
+
+        // 重要：先设置状态，然后直接使用newSessionId获取消息，避免状态更新不及时的问题
+        setSessionId(newSessionId);
+        fetchMessages(1, false, newSessionId);
+      } else {
+        console.error('会话创建失败');
+        Taro.navigateBack();
+      }
+    } else {
+      console.error('缺少必要参数，无法初始化聊天');
+      Taro.showToast({
+        title: '无法开始聊天',
+        icon: 'none'
+      });
+      setTimeout(() => Taro.navigateBack(), 1500);
+    }
+  };
+
+  // 获取群组信息并检查当前用户是否是群主
   useEffect(() => {
-    fetchMessages();
+    if (isGroupChat && router.params.id) {
+      const groupId = parseInt(router.params.id, 10);
+
+      // 获取用户信息
+      const userInfo = Taro.getStorageSync('userInfo');
+      const userId = userInfo?.id;
+
+      // 发起API请求获取群组信息
+      Taro.request({
+        url: `/chat/group/${groupId}`,
+        method: 'GET',
+        header: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${Taro.getStorageSync('token')}`
+        }
+      })
+        .then((res) => {
+          if (res.statusCode === 200 && res.data.code === 200) {
+            const groupInfo = res.data.data;
+            // 检查当前用户是否是群主
+            setIsGroupAdmin(groupInfo.creator_id === userId);
+          }
+        })
+        .catch((err) => {
+          console.error('获取群组信息失败:', err);
+        });
+    }
+  }, [isGroupChat, router.params.id]);
+
+  useEffect(() => {
+    initChat();
+
+    // 组件卸载时清理
+    return () => {
+      // 清除消息状态
+      setMessages([]);
+      // 重置会话ID
+      setSessionId(null);
+    };
+  }, []);
+
+  // 使用缓存的会话ID
+  useEffect(() => {
+    // 当会话ID变化时，更新本地存储
+    if (
+      sessionId &&
+      router.params.targetId &&
+      router.params.type === 'single'
+    ) {
+      const targetId = parseInt(router.params.targetId, 10);
+      if (!Number.isNaN(targetId) && targetId > 0) {
+        const sessions = Taro.getStorageSync('chatSessions') || {};
+        sessions[`user_${targetId}`] = sessionId;
+        Taro.setStorageSync('chatSessions', sessions);
+      }
+    }
   }, [sessionId]);
 
   const scrollToBottom = () => {
@@ -217,6 +554,7 @@ const ChatRoom: FC = () => {
   const handleScroll = (e) => {
     const { scrollTop: currentScrollTop } = e.detail;
     if (currentScrollTop < 50 && hasMore && !loading) {
+      // 使用状态中的sessionId
       fetchMessages(page + 1, true);
     }
   };
@@ -238,8 +576,6 @@ const ChatRoom: FC = () => {
   };
 
   const handleOpenFile = async (fileUrl: string, fileName?: string) => {
-    console.log('准备下载文件:', fileUrl);
-    // 检查URL是否包含token，如果不包含，显示错误信息
     if (!fileUrl.includes('token=')) {
       Taro.showModal({
         title: '提示',
@@ -263,7 +599,7 @@ const ChatRoom: FC = () => {
       url: fileUrl,
       filePath,
       timeout: 60000, // 设置60秒超时
-      success: function(res) {
+      success: function (res) {
         console.log('文件下载成功:', res);
         Taro.hideLoading();
 
@@ -278,16 +614,16 @@ const ChatRoom: FC = () => {
           Taro.openDocument({
             filePath: res.tempFilePath || filePath,
             showMenu: true,
-            success: function() {
+            success: function () {
               console.log('打开文档成功');
             },
-            fail: function(err) {
+            fail: function (err) {
               console.error('无法打开文件:', err);
               // 如果无法打开，提示保存
               Taro.showModal({
                 title: '无法预览',
                 content: '该文件类型无法预览，是否保存到手机？',
-                success: function(modalRes) {
+                success: function (modalRes) {
                   if (modalRes.confirm) {
                     // 保存文件
                     handleSaveFile(fileUrl, fileName);
@@ -304,7 +640,7 @@ const ChatRoom: FC = () => {
           });
         }
       },
-      fail: function(err) {
+      fail: function (err) {
         console.error('文件下载失败:', err);
         Taro.hideLoading();
 
@@ -312,10 +648,10 @@ const ChatRoom: FC = () => {
           title: '下载失败',
           content: '文件下载失败，请检查网络连接或刷新页面重试',
           confirmText: '刷新',
-          success: function(modalRes) {
+          success: function (modalRes) {
             if (modalRes.confirm) {
               // 刷新页面以获取新的URL
-              fetchMessages();
+              fetchMessages(page, false);
             }
           }
         });
@@ -331,10 +667,10 @@ const ChatRoom: FC = () => {
         title: '提示',
         content: '文件链接已过期，请刷新页面后重试',
         confirmText: '刷新',
-        success: function(modalRes) {
+        success: function (modalRes) {
           if (modalRes.confirm) {
             // 刷新页面以获取新的URL
-            fetchMessages();
+            fetchMessages(page, false);
           }
         }
       });
@@ -351,14 +687,14 @@ const ChatRoom: FC = () => {
     Taro.downloadFile({
       url: fileUrl,
       timeout: 60000, // 设置60秒超时
-      success: function(res) {
+      success: function (res) {
         console.log('文件下载成功:', res);
 
         if (res.statusCode === 200) {
           // 保存临时文件到本地
           Taro.saveFile({
             tempFilePath: res.tempFilePath,
-            success: function(saveRes) {
+            success: function (saveRes) {
               Taro.hideLoading();
               Taro.showToast({
                 title: '文件已保存',
@@ -366,7 +702,7 @@ const ChatRoom: FC = () => {
               });
               console.log('文件保存成功:', saveRes);
             },
-            fail: function(saveErr) {
+            fail: function (saveErr) {
               console.error('文件保存失败:', saveErr);
               Taro.hideLoading();
 
@@ -408,7 +744,7 @@ const ChatRoom: FC = () => {
           });
         }
       },
-      fail: function(err) {
+      fail: function (err) {
         console.error('文件下载失败:', err);
         Taro.hideLoading();
 
@@ -416,10 +752,10 @@ const ChatRoom: FC = () => {
           title: '下载失败',
           content: '文件下载失败，请检查网络连接或刷新页面重试',
           confirmText: '刷新',
-          success: function(modalRes) {
+          success: function (modalRes) {
             if (modalRes.confirm) {
               // 刷新页面以获取新的URL
-              fetchMessages();
+              fetchMessages(page, false);
             }
           }
         });
@@ -428,41 +764,12 @@ const ChatRoom: FC = () => {
   };
 
   // 懒加载图片组件，需要时才获取URL
-  const LazyLoadImage = ({ messageId, fileName }) => {
-    const [imgLoading, setImgLoading] = useState(false);
-    const [imageUrl, setImageUrl] = useState('');
-    const [error, setError] = useState(false);
-
-    const fetchImageUrl = async () => {
-      try {
-        setImgLoading(true);
-        const res = await getFileUrl(messageId);
-        if (res.statusCode === 200 && res.data.code === 200) {
-          setImageUrl(res.data.data.url);
-        } else {
-          setError(true);
-          console.error('获取图片URL失败:', res);
-        }
-      } catch (err) {
-        setError(true);
-        console.error('获取图片URL异常:', err);
-      } finally {
-        setImgLoading(false);
-      }
-    };
-
-    useEffect(() => {
-      fetchImageUrl();
-    }, [messageId]);
-
-    if (imgLoading) {
-      return <View className='lazy-image loading'>加载中...</View>;
-    }
-
-    if (error || !imageUrl) {
+  const LazyLoadImage = ({ messageId, fileName, content }) => {
+    // 直接使用传入的content作为图片URL
+    if (!content || !content.includes('http')) {
       return (
-        <View className='lazy-image error' onClick={fetchImageUrl}>
-          <Text>图片加载失败，点击重试</Text>
+        <View className='lazy-image error'>
+          <Text>图片链接无效</Text>
         </View>
       );
     }
@@ -470,17 +777,15 @@ const ChatRoom: FC = () => {
     return (
       <Image
         className='message-content-image'
-        src={imageUrl}
+        src={content}
         mode='widthFix'
-        onClick={() => Taro.previewImage({ urls: [imageUrl] })}
+        onClick={() => Taro.previewImage({ urls: [content] })}
       />
     );
   };
 
-  // 文件附件组件，需要时才获取URL
-  const FileAttachment = ({ messageId, fileName, fileSize }) => {
-    const [fileLoading, setFileLoading] = useState(false);
-
+  // 文件附件组件
+  const FileAttachment = ({ messageId, fileName, fileSize, content }) => {
     // 获取文件类型图标
     const fileExt = fileName?.split('.').pop()?.toLowerCase() || '';
     let fileIcon = '📄';
@@ -506,52 +811,28 @@ const ChatRoom: FC = () => {
     // 格式化文件大小
     const formattedSize = fileSize ? formatFileSize(fileSize) : '';
 
-    const handleFileOpen = async () => {
-      try {
-        setFileLoading(true);
-        const res = await getFileUrl(messageId);
-        if (res.statusCode === 200 && res.data.code === 200) {
-          const fileUrl = res.data.data.url;
-          handleOpenFile(fileUrl, fileName);
-        } else {
-          Taro.showToast({
-            title: '获取文件链接失败',
-            icon: 'none'
-          });
-        }
-      } catch (err) {
-        console.error('获取文件URL异常:', err);
+    const handleFileOpen = () => {
+      if (!content || !content.includes('http')) {
         Taro.showToast({
-          title: '获取文件链接失败',
+          title: '文件链接无效',
           icon: 'none'
         });
-      } finally {
-        setFileLoading(false);
+        return;
       }
+
+      handleOpenFile(content, fileName);
     };
 
-    const handleFileSave = async () => {
-      try {
-        setFileLoading(true);
-        const res = await getFileUrl(messageId);
-        if (res.statusCode === 200 && res.data.code === 200) {
-          const fileUrl = res.data.data.url;
-          handleSaveFile(fileUrl, fileName);
-        } else {
-          Taro.showToast({
-            title: '获取文件链接失败',
-            icon: 'none'
-          });
-        }
-      } catch (err) {
-        console.error('获取文件URL异常:', err);
+    const handleFileSave = () => {
+      if (!content || !content.includes('http')) {
         Taro.showToast({
-          title: '获取文件链接失败',
+          title: '文件链接无效',
           icon: 'none'
         });
-      } finally {
-        setFileLoading(false);
+        return;
       }
+
+      handleSaveFile(content, fileName);
     };
 
     return (
@@ -573,7 +854,7 @@ const ChatRoom: FC = () => {
             }}
           >
             <Text className='download-icon'>📄</Text>
-            <Text>{fileLoading ? '加载中...' : '查看'}</Text>
+            <Text>查看</Text>
           </View>
           <View
             className='file-save-btn'
@@ -583,7 +864,7 @@ const ChatRoom: FC = () => {
             }}
           >
             <Text className='save-icon'>💾</Text>
-            <Text>{fileLoading ? '加载中...' : '保存'}</Text>
+            <Text>保存</Text>
           </View>
         </View>
       </View>
@@ -592,94 +873,23 @@ const ChatRoom: FC = () => {
 
   const renderMessageContent = (message: Message) => {
     if (message.type === 'image') {
-      // 处理需要获取URL的图片
-      if (message.needs_url_fetch) {
-        return (
-          <LazyLoadImage messageId={message.id} fileName={message.fileName} />
-        );
-      }
-
+      // 处理图片
       return (
-        <Image
-          className='message-content-image'
-          src={message.content}
-          mode='widthFix'
-          onClick={() => Taro.previewImage({ urls: [message.content] })}
+        <LazyLoadImage
+          messageId={message.id}
+          fileName={message.fileName}
+          content={message.content}
         />
       );
     } else if (message.type === 'file') {
-      // 处理需要获取URL的文件
-      if (message.needs_url_fetch) {
-        return (
-          <FileAttachment
-            messageId={message.id}
-            fileName={message.fileName}
-            fileSize={message.fileSize}
-          />
-        );
-      }
-
-      // 获取文件类型图标
-      let fileIcon = '📄';
-      const fileName = message.fileName || '文件';
-      const fileExt = fileName.split('.').pop()?.toLowerCase() || '';
-
-      if (['pdf'].includes(fileExt)) {
-        fileIcon = '📕';
-      } else if (['doc', 'docx'].includes(fileExt)) {
-        fileIcon = '📘';
-      } else if (['xls', 'xlsx'].includes(fileExt)) {
-        fileIcon = '📗';
-      } else if (['ppt', 'pptx'].includes(fileExt)) {
-        fileIcon = '📙';
-      } else if (['jpg', 'jpeg', 'png', 'gif'].includes(fileExt)) {
-        fileIcon = '🖼️';
-      } else if (['mp3', 'wav'].includes(fileExt)) {
-        fileIcon = '🎵';
-      } else if (['mp4', 'avi', 'mov'].includes(fileExt)) {
-        fileIcon = '🎬';
-      } else if (['zip', 'rar', '7z'].includes(fileExt)) {
-        fileIcon = '📦';
-      }
-
-      // 格式化文件大小
-      const fileSize = message.fileSize
-        ? formatFileSize(message.fileSize)
-        : '';
-
+      // 处理文件
       return (
-        <View className='file-card'>
-          <View className='file-card-header'>
-            <Text className='file-icon'>{fileIcon}</Text>
-            <Text className='file-ext'>{fileExt.toUpperCase()}</Text>
-          </View>
-          <View className='file-card-content'>
-            <Text className='file-name'>{fileName}</Text>
-            {fileSize && <Text className='file-size'>{fileSize}</Text>}
-          </View>
-          <View className='file-card-actions'>
-            <View
-              className='file-download-btn'
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenFile(message.content, message.fileName);
-              }}
-            >
-              <Text className='download-icon'>📄</Text>
-              <Text>查看</Text>
-            </View>
-            <View
-              className='file-save-btn'
-              onClick={(e) => {
-                e.stopPropagation();
-                handleSaveFile(message.content, message.fileName);
-              }}
-            >
-              <Text className='save-icon'>💾</Text>
-              <Text>保存</Text>
-            </View>
-          </View>
-        </View>
+        <FileAttachment
+          messageId={message.id}
+          fileName={message.fileName}
+          fileSize={message.fileSize}
+          content={message.content}
+        />
       );
     } else {
       let keyCounter = 0;
@@ -706,21 +916,56 @@ const ChatRoom: FC = () => {
   const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
+    // 确保有有效的会话ID
+    const chatSessionId = sessionId;
+
+    if (
+      !chatSessionId ||
+      typeof chatSessionId !== 'number' ||
+      chatSessionId <= 0
+    ) {
+      console.error('没有有效的会话ID，无法发送消息');
+      Taro.showToast({
+        title: '发送失败，无效会话',
+        icon: 'none'
+      });
+      return;
+    }
+
     try {
+      const currentUserInfo = Taro.getStorageSync('userInfo');
+      const tempMessage: Message = {
+        id: Date.now(), // 临时ID
+        type: 'text',
+        content: inputValue,
+        time: new Date().toLocaleTimeString('zh-CN', {
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
+        isSelf: true,
+        avatar: currentUserInfo.avatar,
+        name: currentUserInfo.username
+      };
+
+      // 先将消息添加到本地
+      setMessages((prev) => [...prev, tempMessage]);
+      scrollToBottom();
+      setInputValue('');
+
+      console.log(`发送消息到会话[${chatSessionId}]:`, inputValue);
+
+      // 发送消息 - 群聊和私聊现在统一使用sendMessage API
       const res = await sendMessage({
-        sessionId: Number(sessionId),
+        sessionId: chatSessionId,
         content: inputValue,
         type: 'text'
       });
 
-      if (res.statusCode === 200 && res.data.code === 200) {
-        fetchMessages();
-        setInputValue('');
+      if (res.statusCode !== 200 || res.data.code !== 200) {
+        console.error('服务器返回发送失败:', res.data.message || '未知错误');
+        throw new Error('发送消息失败');
       } else {
-        Taro.showToast({
-          title: res.data.message || '发送失败',
-          icon: 'none'
-        });
+        console.log('消息发送成功, ID:', res.data.data.id);
       }
     } catch (error) {
       console.error('发送消息失败:', error);
@@ -750,156 +995,340 @@ const ChatRoom: FC = () => {
   };
 
   const handleUploadImage = () => {
+    // 确保有有效的会话ID
+    const chatSessionId = sessionId;
+    console.log(
+      '上传图片使用的会话ID:',
+      chatSessionId,
+      '类型:',
+      typeof chatSessionId
+    );
+
+    if (
+      !chatSessionId ||
+      typeof chatSessionId !== 'number' ||
+      chatSessionId <= 0
+    ) {
+      console.error('没有有效的会话ID，无法上传图片');
+      Taro.showToast({
+        title: '上传失败，无效会话',
+        icon: 'none'
+      });
+      return;
+    }
+
     chooseImage({
       count: 1,
-      sizeType: ['original', 'compressed'],
+      sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
-      success: function (res) {
-        const tempFilePath = res.tempFilePaths[0];
-        console.log('选择的图片:', tempFilePath);
+      success: async (res) => {
+        try {
+          setShowExtraPanel(false);
+          const filePath = res.tempFilePaths[0];
+          Taro.showLoading({ title: '上传中...' });
 
-        Taro.showLoading({ title: '上传中...' });
+          // 先添加一个临时消息
+          const currentUserInfo = Taro.getStorageSync('userInfo');
+          const tempMessage: Message = {
+            id: Date.now(), // 临时ID
+            type: 'image',
+            content: filePath, // 先用本地路径
+            time: new Date().toLocaleTimeString('zh-CN', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            isSelf: true,
+            avatar: currentUserInfo.avatar,
+            name: currentUserInfo.username
+          };
 
-        uploadChatImage(tempFilePath, Number(sessionId))
-          .then((uploadRes) => {
-            console.log('图片上传结果:', uploadRes);
+          setMessages((prev) => [...prev, tempMessage]);
+          scrollToBottom();
 
-            if (uploadRes.statusCode !== 200) {
-              throw new Error('上传失败');
+          // 上传图片
+          const uploadRes = await uploadChatImage(filePath, chatSessionId);
+          Taro.hideLoading();
+
+          if (uploadRes.statusCode === 200) {
+            const data = JSON.parse(uploadRes.data);
+            if (data.code === 200) {
+              // 成功上传，刷新消息列表
+              fetchMessages(page, false);
+            } else {
+              throw new Error(data.message || '上传失败');
             }
-
-            let result;
-            try {
-              result = JSON.parse(uploadRes.data);
-            } catch (e) {
-              console.error('解析上传结果失败:', e);
-              throw new Error('上传结果解析失败');
-            }
-
-            if (!result.success) {
-              throw new Error(result.message || '上传失败');
-            }
-
-            // 图片上传成功后，消息已经在后端创建，只需刷新消息列表
-            fetchMessages();
-            Taro.hideLoading();
-          })
-          .catch((err) => {
-            console.error('上传/发送图片失败:', err);
-            Taro.hideLoading();
-            Taro.showToast({
-              title: err.message || '上传图片失败',
-              icon: 'none'
-            });
+          } else {
+            throw new Error('上传失败，服务器错误');
+          }
+        } catch (error) {
+          console.error('上传图片失败:', error);
+          Taro.hideLoading();
+          Taro.showToast({
+            title: '上传失败',
+            icon: 'none'
           });
-
-        setShowExtraPanel(false);
-      },
-      fail: function (err) {
-        console.error('选择图片失败:', err);
-        setShowExtraPanel(false);
+        }
       }
     });
   };
 
   const handleUploadFile = () => {
+    // 确保有有效的会话ID
+    const chatSessionId = sessionId;
+    console.log(
+      '上传文件使用的会话ID:',
+      chatSessionId,
+      '类型:',
+      typeof chatSessionId
+    );
+
+    if (
+      !chatSessionId ||
+      typeof chatSessionId !== 'number' ||
+      chatSessionId <= 0
+    ) {
+      console.error('没有有效的会话ID，无法上传文件');
+      Taro.showToast({
+        title: '上传失败，无效会话',
+        icon: 'none'
+      });
+      return;
+    }
+
     chooseMessageFile({
       count: 1,
-      type: 'all',
-      success: function (res) {
-        const tempFile = res.tempFiles[0];
-        console.log('选择的文件:', tempFile);
+      success: async (res) => {
+        try {
+          setShowExtraPanel(false);
+          const file = res.tempFiles[0];
+          const filePath = file.path;
+          const fileName = file.name;
 
-        if (!tempFile) {
-          Taro.showToast({ title: '未选择文件', icon: 'none' });
-          return;
-        }
+          Taro.showLoading({ title: '上传中...' });
 
-        if (tempFile.size === 0) {
+          // 先添加一个临时消息
+          const currentUserInfo = Taro.getStorageSync('userInfo');
+          const tempMessage: Message = {
+            id: Date.now(), // 临时ID
+            type: 'file',
+            content: fileName,
+            fileName: fileName,
+            fileSize: file.size,
+            time: new Date().toLocaleTimeString('zh-CN', {
+              hour: '2-digit',
+              minute: '2-digit'
+            }),
+            isSelf: true,
+            avatar: currentUserInfo.avatar,
+            name: currentUserInfo.username
+          };
+
+          setMessages((prev) => [...prev, tempMessage]);
+          scrollToBottom();
+
+          // 上传文件
+          const uploadRes = await uploadChatFile(
+            filePath,
+            fileName,
+            chatSessionId
+          );
+          Taro.hideLoading();
+
+          if (uploadRes.statusCode === 200) {
+            const data = JSON.parse(uploadRes.data);
+            if (data.code === 200) {
+              // 成功上传，刷新消息列表
+              fetchMessages(page, false);
+            } else {
+              throw new Error(data.message || '上传失败');
+            }
+          } else {
+            throw new Error('上传失败，服务器错误');
+          }
+        } catch (error) {
+          console.error('上传文件失败:', error);
+          Taro.hideLoading();
           Taro.showToast({
-            title: '文件大小为0，请选择有效文件',
+            title: '上传失败',
             icon: 'none'
           });
-          return;
         }
-
-        Taro.showLoading({ title: '上传中...' });
-
-        uploadChatFile(tempFile.path, tempFile.name, Number(sessionId))
-          .then((uploadRes) => {
-            console.log('文件上传结果:', uploadRes);
-
-            if (uploadRes.statusCode !== 200) {
-              throw new Error('上传失败');
-            }
-
-            let result;
-            try {
-              result = JSON.parse(uploadRes.data);
-            } catch (e) {
-              console.error('解析上传结果失败:', e);
-              throw new Error('上传结果解析失败');
-            }
-
-            if (!result.success) {
-              throw new Error(result.message || '上传失败');
-            }
-
-            // 文件上传成功后，消息已经在后端创建，只需刷新消息列表
-            fetchMessages();
-            Taro.hideLoading();
-          })
-          .catch((err) => {
-            console.error('上传/发送文件失败:', err);
-            Taro.hideLoading();
-            Taro.showToast({
-              title: err.message || '上传文件失败',
-              icon: 'none'
-            });
-          });
-
-        setShowExtraPanel(false);
-      },
-      fail: function (err) {
-        console.error('选择文件失败:', err);
-        setShowExtraPanel(false);
       }
     });
   };
 
   const handleLeaveGroup = () => {
+    // 根据是否是群主显示不同的操作
+    const actionText = isGroupAdmin ? '解散' : '退出';
+
     Taro.showModal({
       title: '提示',
-      content: '确定要退出该群聊吗？',
+      content: isGroupAdmin
+        ? '确定要解散该群聊吗？解散后群聊将被永久删除且无法恢复。'
+        : '确定要退出该群聊吗？',
       success: function (res) {
         if (res.confirm) {
-          console.log('用户点击确定，执行退出群聊逻辑');
+          console.log(`用户点击确定，执行${actionText}群聊逻辑`);
 
-          const currentChatId = parseInt(router.params.id || '0', 10);
-          if (currentChatId) {
-            Taro.setStorageSync('deletedChatId', currentChatId);
-            console.log(
-              `ChatRoom: Marked chat ID ${currentChatId} for deletion.`
-            );
+          const currentGroupId = parseInt(router.params.id || '0', 10);
+          if (currentGroupId <= 0) {
+            Taro.showToast({ title: '群组ID无效', icon: 'none' });
+            return;
           }
 
-          Taro.navigateBack();
+          // 显示加载中
+          Taro.showLoading({ title: '处理中...' });
+
+          // 根据是否是群主调用不同的API
+          const apiCall = isGroupAdmin
+            ? dissolveGroup(currentGroupId)
+            : leaveGroup(currentGroupId);
+
+          apiCall
+            .then((response) => {
+              if (response.statusCode === 200 && response.data.code === 200) {
+                Taro.hideLoading();
+                Taro.showToast({
+                  title: isGroupAdmin ? '已解散群聊' : '已退出群聊',
+                  icon: 'success'
+                });
+
+                // 标记群聊需要从列表中删除
+                const currentChatId = currentGroupId;
+                if (currentChatId) {
+                  Taro.setStorageSync('deletedChatId', currentChatId);
+                  console.log(
+                    `ChatRoom: Marked chat ID ${currentChatId} for deletion.`
+                  );
+                }
+
+                // 返回上一页
+                setTimeout(() => {
+                  Taro.navigateBack();
+                }, 1000);
+              } else {
+                Taro.hideLoading();
+                Taro.showToast({
+                  title: response.data.message || `${actionText}失败`,
+                  icon: 'none'
+                });
+              }
+            })
+            .catch((err) => {
+              console.error(`${actionText}群组失败:`, err);
+              Taro.hideLoading();
+              Taro.showToast({ title: '操作失败', icon: 'none' });
+            });
         } else if (res.cancel) {
-          console.log('用户点击取消');
           setShowExtraPanel(false);
         }
       },
       fail: function (err) {
-        console.error('退出群聊操作失败:', err);
+        console.error(`${actionText}群聊操作失败:`, err);
         Taro.showToast({ title: '操作失败', icon: 'none' });
         setShowExtraPanel(false);
       }
     });
   };
 
+  // 处理群聊消息获取
+  const fetchGroupMessages = async (
+    groupId: number,
+    pageNum: number = 1,
+    isLoadMore: boolean = false,
+    providedSessionId?: number | null
+  ) => {
+    try {
+      setLoading(true);
+
+      // 使用提供的sessionId而不是groupId来获取消息
+      const sessionIdToUse =
+        providedSessionId !== undefined ? providedSessionId : sessionId;
+
+      if (
+        !sessionIdToUse ||
+        typeof sessionIdToUse !== 'number' ||
+        sessionIdToUse <= 0
+      ) {
+        console.error('没有有效的会话ID，无法获取消息');
+        Taro.showToast({
+          title: '无法获取消息',
+          icon: 'none'
+        });
+        return;
+      }
+
+      console.log(
+        `获取群组[${groupId}]的消息，使用会话ID:${sessionIdToUse}, 页码:${pageNum}`
+      );
+
+      // 这里使用统一的getChatMessages API，使用会话ID获取消息
+      const res = await getChatMessages(sessionIdToUse, pageNum);
+      if (res.statusCode === 200 && res.data.code === 200) {
+        // 验证消息属于当前会话
+        const currentSessionId = sessionId;
+        if (currentSessionId && currentSessionId !== sessionIdToUse) {
+          console.warn(
+            '会话ID不匹配，期望:',
+            currentSessionId,
+            '实际:',
+            sessionIdToUse
+          );
+          // 如果当前会话ID已经改变，忽略这次请求的结果
+          return;
+        }
+
+        const formattedMessages = res.data.data.map((msg: any) => ({
+          id: msg.id,
+          type: msg.type,
+          content: msg.content,
+          time: new Date(msg.created_at).toLocaleTimeString('zh-CN', {
+            hour: '2-digit',
+            minute: '2-digit'
+          }),
+          isSelf: msg.sender_id === Number(Taro.getStorageSync('userInfo').id),
+          avatar: msg.sender_avatar,
+          name: msg.sender_name,
+          fileName: msg.file_name,
+          fileSize: msg.file_size,
+          needs_url_fetch: msg.needs_url_fetch,
+          isSystem: msg.message_type === 'system'
+        }));
+
+        if (isLoadMore) {
+          setMessages((prev) => [...formattedMessages, ...prev]);
+        } else {
+          setMessages(formattedMessages);
+        }
+
+        setHasMore(formattedMessages.length === 20);
+        setPage(pageNum);
+
+        if (sessionIdToUse) {
+          // 标记消息已读 - 临时删除这个功能调用，因为后端接口不存在
+          // markGroupMessagesRead(sessionIdToUse);
+        }
+      } else {
+        console.error('获取群消息失败:', res.data.message || '未知错误');
+        Taro.showToast({
+          title: '获取消息失败',
+          icon: 'none'
+        });
+      }
+    } catch (error) {
+      console.error('获取群消息失败:', error);
+      Taro.showToast({
+        title: '获取消息失败',
+        icon: 'none'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <View className='chatroom-container'>
-      <NavigationBar title={decodeURIComponent(name || '聊天')} showBack />
+      <NavigationBar title={targetName} showBack />
 
       <ScrollView
         enhanced
@@ -923,27 +1352,35 @@ const ChatRoom: FC = () => {
         {messages.map((msg) => (
           <View
             key={msg.id}
-            className={`message-item-wrapper ${msg.isSelf ? 'self' : 'other'}`}
+            className={`message-item-wrapper ${
+              msg.isSystem ? 'system' : msg.isSelf ? 'self' : 'other'
+            }`}
           >
-            <View className={`message-item ${msg.isSelf ? 'self' : 'other'}`}>
-              <Image className='avatar' src={msg.avatar} />
-              <View className='message-content-area'>
-                <View className='sender-info'>
-                  {!msg.isSelf && <Text className='name'>{msg.name}</Text>}
-                  {msg.isSelf && (
-                    <Text className='name self-name'>{msg.name}</Text>
-                  )}
-                  <Text className='time'>{msg.time}</Text>
-                </View>
-                <View
-                  className={`message-bubble ${
-                    msg.type === 'text' ? '' : 'media'
-                  }`}
-                >
-                  <View className='text'>{renderMessageContent(msg)}</View>
+            {msg.isSystem ? (
+              <View className='system-message'>
+                <Text className='system-text'>{msg.content}</Text>
+              </View>
+            ) : (
+              <View className={`message-item ${msg.isSelf ? 'self' : 'other'}`}>
+                <Image className='avatar' src={msg.avatar} />
+                <View className='message-content-area'>
+                  <View className='sender-info'>
+                    {!msg.isSelf && <Text className='name'>{msg.name}</Text>}
+                    {msg.isSelf && (
+                      <Text className='name self-name'>{msg.name}</Text>
+                    )}
+                    <Text className='time'>{msg.time}</Text>
+                  </View>
+                  <View
+                    className={`message-bubble ${
+                      msg.type === 'text' ? '' : 'media'
+                    }`}
+                  >
+                    <View className='text'>{renderMessageContent(msg)}</View>
+                  </View>
                 </View>
               </View>
-            </View>
+            )}
           </View>
         ))}
         <View id='bottom' style={{ height: '30px', width: '100%' }} />
@@ -1050,7 +1487,9 @@ const ChatRoom: FC = () => {
                   src={require('@/static/icon/leave.png')}
                 />
               </View>
-              <Text className='extra-panel-text'>退出群聊</Text>
+              <Text className='extra-panel-text'>
+                {isGroupAdmin ? '解散群聊' : '退出群聊'}
+              </Text>
             </View>
           )}
         </View>

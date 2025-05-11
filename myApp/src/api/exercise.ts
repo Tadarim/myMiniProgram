@@ -37,6 +37,38 @@ export const exerciseService = {
     }
   },
 
+  // 获取热门习题集（按浏览量排行）
+  async getPopularExercises(limit: number = 5): Promise<any> {
+    const token = Taro.getStorageSync('token');
+
+    if (!token) {
+      Taro.navigateTo({
+        url: '/pages/login/index'
+      });
+      throw new Error('请先登录');
+    }
+
+    try {
+      const response = await request({
+        url: '/exercise/popular',
+        method: 'GET',
+        data: { limit },
+        header: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.statusCode === 200) {
+        return response.data;
+      }
+      throw new Error(response.data.message || '获取热门习题集失败');
+    } catch (error) {
+      console.error('Get popular exercises failed:', error);
+      throw error;
+    }
+  },
+
   // 获取习题详情
   async getExerciseDetail(exerciseId: string): Promise<any> {
     const token = Taro.getStorageSync('token');

@@ -9,6 +9,7 @@ import {
   deleteQuestion,
   updateCompleteCount,
   toggleExerciseCollection,
+  getPopularExercises,
 } from "../controllers/exercise";
 import {
   verifyTokenMiddleware,
@@ -19,6 +20,9 @@ const router = Router();
 
 // 获取习题集列表
 router.get("/list", getExerciseSets);
+
+// 获取热门习题集
+router.get("/popular", setUserFromToken, getPopularExercises);
 
 // 创建习题集
 router.post("/create", createExerciseSet);

@@ -15,7 +15,9 @@ export default defineAppConfig({
     'pages/exerciseList/index',
     'pages/postDetail/index',
     'pages/chapterDetail/index',
-    'pages/exerciseDetail/index'
+    'pages/exerciseDetail/index',
+    'pages/groups/create/index',
+    'pages/groups/discover/index'
   ],
   window: {
     backgroundTextStyle: 'light',
