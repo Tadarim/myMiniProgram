@@ -1,4 +1,11 @@
-import { View, Text, Checkbox, Radio, CheckboxGroup, RadioGroup } from '@tarojs/components';
+import {
+  View,
+  Text,
+  Checkbox,
+  Radio,
+  CheckboxGroup,
+  RadioGroup
+} from '@tarojs/components';
 import { showToast, useRouter } from '@tarojs/taro';
 
 import { Star, StarFill, Success } from '@nutui/icons-react-taro';
@@ -7,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 
 import { exerciseService } from '@/api/exercise';
 import { addHistory } from '@/api/history';
+import RecommendModal from '@/components/modal';
 import NavigationBar from '@/components/navigationBar';
 import { Question } from '@/types/exercise';
 
@@ -29,6 +37,7 @@ const ExerciseDetail: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [score, setScore] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [showRecommendModal, setShowRecommendModal] = useState(false);
 
   const fetchExerciseDetail = async () => {
     try {
@@ -111,6 +120,7 @@ const ExerciseDetail: React.FC = () => {
     setShowAnswer(true);
     setShowModal(false);
     setCurrentIndex(1);
+    setShowRecommendModal(true);
   };
 
   useEffect(() => {
@@ -119,12 +129,16 @@ const ExerciseDetail: React.FC = () => {
 
   const handleCollectToggle = async () => {
     try {
-      const response = await exerciseService.toggleExerciseCollection(router.params.id ?? '');
+      const response = await exerciseService.toggleExerciseCollection(
+        router.params.id ?? ''
+      );
 
       if (response.code === 200) {
         setIsCollected(response.data.is_collected);
         showToast({
-          title: response.message || (response.data.is_collected ? '收藏成功' : '取消收藏'),
+          title:
+            response.message ||
+            (response.data.is_collected ? '收藏成功' : '取消收藏'),
           icon: 'success',
           duration: 1500
         });
@@ -159,9 +173,7 @@ const ExerciseDetail: React.FC = () => {
 
       <View className='options-list'>
         {currentQuestion?.type === 'single' ? (
-          <RadioGroup
-            className='radio-group'
-          >
+          <RadioGroup className='radio-group'>
             {currentQuestion?.options.map((option, index) => (
               <View
                 key={option}
@@ -190,9 +202,7 @@ const ExerciseDetail: React.FC = () => {
             ))}
           </RadioGroup>
         ) : (
-          <CheckboxGroup
-            className='checkbox-group'
-          >
+          <CheckboxGroup className='checkbox-group'>
             {currentQuestion?.options.map((option, index) => (
               <View
                 key={option}
@@ -200,9 +210,9 @@ const ExerciseDetail: React.FC = () => {
                 onClick={() => {
                   if (!showAnswer) {
                     const newSelected = [...selectedAnswer];
-                    const index = newSelected.indexOf(option);
-                    if (index > -1) {
-                      newSelected.splice(index, 1);
+                    const newIndex = newSelected.indexOf(option);
+                    if (newIndex > -1) {
+                      newSelected.splice(newIndex, 1);
                     } else {
                       newSelected.push(option);
                     }
@@ -290,6 +300,12 @@ const ExerciseDetail: React.FC = () => {
           <Text style={{ marginBottom: '16px' }}>分数: {score}</Text>
         </View>
       </Dialog>
+
+      <RecommendModal
+        visible={showRecommendModal}
+        onClose={() => setShowRecommendModal(false)}
+        triggerType='exercise'
+      />
     </View>
   );
 };

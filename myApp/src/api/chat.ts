@@ -2,19 +2,14 @@ import Taro from '@tarojs/taro';
 
 import { BASE_URL } from './constant';
 
-import { ChatMessage } from '@/types/chat';
-import { CreateGroupParams } from '@/types/group';
-
-
 const getHeaders = () => {
   const token = Taro.getStorageSync('token');
   return {
     'Content-Type': 'application/json',
-    'Authorization': token ? `Bearer ${token}` : ''
+    Authorization: token ? `Bearer ${token}` : ''
   };
 };
 
-// 获取聊天会话列表
 export const getChatSessions = (type?: 'single' | 'group') => {
   return Taro.request({
     url: '/chat/sessions',
@@ -24,13 +19,8 @@ export const getChatSessions = (type?: 'single' | 'group') => {
   });
 };
 
-// 获取或创建会话
 export const getOrCreateSession = (targetId: number) => {
-  // 确保targetId是数字
   const numericTargetId = Number(targetId);
-
-  // 记录实际发送的ID，便于调试
-  console.log('创建会话，目标用户ID:', numericTargetId, '类型:', typeof numericTargetId);
 
   if (Number.isNaN(numericTargetId) || numericTargetId <= 0) {
     console.error('无效的目标用户ID:', targetId);
@@ -42,9 +32,7 @@ export const getOrCreateSession = (targetId: number) => {
   const cachedSession = chatSessionsCache[`user_${numericTargetId}`];
 
   // 如果缓存中有最近30分钟内创建的会话，直接返回缓存的会话
-  if (cachedSession && (Date.now() - cachedSession.timestamp < 30 * 60 * 1000)) {
-    console.log('从缓存获取会话:', cachedSession);
-    // 返回符合Taro.request返回结构的对象
+  if (cachedSession && Date.now() - cachedSession.timestamp < 30 * 60 * 1000) {
     return Promise.resolve({
       statusCode: 200,
       data: {
@@ -60,9 +48,12 @@ export const getOrCreateSession = (targetId: number) => {
     url: `/chat/session/${numericTargetId}`,
     method: 'GET',
     header: getHeaders()
-  }).then(response => {
-    // 请求成功且返回有效会话时，更新缓存
-    if (response.statusCode === 200 && response.data.code === 200 && response.data.data) {
+  }).then((response) => {
+    if (
+      response.statusCode === 200 &&
+      response.data.code === 200 &&
+      response.data.data
+    ) {
       const sessionData = response.data.data;
 
       // 更新缓存
@@ -71,16 +62,13 @@ export const getOrCreateSession = (targetId: number) => {
         timestamp: Date.now()
       };
 
-      // 保存到本地存储
       Taro.setStorageSync('chatSessionsCache', chatSessionsCache);
-      console.log('会话已缓存:', sessionData.id);
     }
 
     return response;
   });
 };
 
-// 获取聊天消息历史
 export const getChatMessages = (sessionId: number, page = 1, pageSize = 20) => {
   return Taro.request({
     url: `/chat/messages/${sessionId}`,
@@ -90,7 +78,6 @@ export const getChatMessages = (sessionId: number, page = 1, pageSize = 20) => {
   });
 };
 
-// 发送消息
 export const sendMessage = (data: {
   sessionId: number;
   content: string;
@@ -107,7 +94,6 @@ export const sendMessage = (data: {
   });
 };
 
-// 获取未读消息数
 export const getUnreadCount = () => {
   return Taro.request({
     url: `/chat/unread`,
@@ -116,8 +102,11 @@ export const getUnreadCount = () => {
   });
 };
 
-// 上传聊天图片
-export const uploadChatImage = (filePath: string, sessionId: number, fileName?: string) => {
+export const uploadChatImage = (
+  filePath: string,
+  sessionId: number,
+  fileName?: string
+) => {
   return Taro.uploadFile({
     url: BASE_URL + '/chat/upload',
     filePath,
@@ -128,13 +117,16 @@ export const uploadChatImage = (filePath: string, sessionId: number, fileName?: 
       fileName
     },
     header: {
-      'Authorization': getHeaders().Authorization
+      Authorization: getHeaders().Authorization
     }
   });
 };
 
-// 上传聊天文件
-export const uploadChatFile = (filePath: string, fileName: string, sessionId: number) => {
+export const uploadChatFile = (
+  filePath: string,
+  fileName: string,
+  sessionId: number
+) => {
   return Taro.uploadFile({
     url: BASE_URL + '/chat/upload',
     filePath,
@@ -145,12 +137,11 @@ export const uploadChatFile = (filePath: string, fileName: string, sessionId: nu
       fileName
     },
     header: {
-      'Authorization': getHeaders().Authorization
+      Authorization: getHeaders().Authorization
     }
   });
 };
 
-// 刷新文件URL
 export const refreshFileUrl = (messageId: number) => {
   return Taro.request({
     url: `/chat/refresh-file/${messageId}`,
@@ -159,9 +150,6 @@ export const refreshFileUrl = (messageId: number) => {
   });
 };
 
-// ================ 群组相关API ================
-
-// 获取我加入的群组列表
 export const getMyGroups = () => {
   return Taro.request({
     url: '/chat/my-groups',
@@ -220,7 +208,6 @@ export const getGroupDetail = (groupId: number) => {
   });
 };
 
-// 加入群组
 export const joinGroup = (groupId: number) => {
   return Taro.request({
     url: `/chat/group/${groupId}/join`,
@@ -229,7 +216,6 @@ export const joinGroup = (groupId: number) => {
   });
 };
 
-// 退出群组
 export const leaveGroup = (groupId: number) => {
   return Taro.request({
     url: `/chat/group/${groupId}/leave`,
@@ -238,7 +224,6 @@ export const leaveGroup = (groupId: number) => {
   });
 };
 
-// 解散群组（仅群主可操作）
 export const dissolveGroup = (groupId: number) => {
   return Taro.request({
     url: `/chat/group/${groupId}/dissolve`,
@@ -247,7 +232,6 @@ export const dissolveGroup = (groupId: number) => {
   });
 };
 
-// 上传群组封面
 export const uploadGroupCover = (filePath: string) => {
   return Taro.uploadFile({
     url: BASE_URL + '/chat/upload',
@@ -257,12 +241,11 @@ export const uploadGroupCover = (filePath: string) => {
       type: 'group_cover'
     },
     header: {
-      'Authorization': getHeaders().Authorization
+      Authorization: getHeaders().Authorization
     }
   });
 };
 
-// 标记群消息已读
 export const markGroupMessagesRead = (sessionId: number) => {
   return Taro.request({
     url: `/chat/messages/${sessionId}/read`,

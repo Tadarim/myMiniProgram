@@ -10,8 +10,11 @@ export const initWebSocketServer = (server: Server) => {
 
   wss.on("connection", (ws, req) => {
     // 从 URL 中获取用户 token
-    const token = new URL(req.url!, `http://${req.headers.host}`).searchParams.get("token");
-    
+    const token = new URL(
+      req.url!,
+      `http://${req.headers.host}`
+    ).searchParams.get("token");
+
     if (!token) {
       ws.close();
       return;
@@ -25,21 +28,23 @@ export const initWebSocketServer = (server: Server) => {
     }
 
     const userId = payload.id;
-    
+
     // 存储用户连接
     onlineUsers.set(userId, ws);
 
     // 发送在线状态
-    ws.send(JSON.stringify({
-      type: "status",
-      data: { online: true }
-    }));
+    ws.send(
+      JSON.stringify({
+        type: "status",
+        data: { online: true },
+      })
+    );
 
     // 处理消息
     ws.on("message", (message) => {
       try {
         const data = JSON.parse(message.toString());
-        
+
         // 根据消息类型处理
         switch (data.type) {
           case "chat":
@@ -47,14 +52,16 @@ export const initWebSocketServer = (server: Server) => {
             const receiverWs = onlineUsers.get(data.receiverId);
             if (receiverWs) {
               // 发送消息给接收者
-              receiverWs.send(JSON.stringify({
-                type: "chat",
-                data: {
-                  senderId: userId,
-                  content: data.content,
-                  timestamp: new Date().toISOString()
-                }
-              }));
+              receiverWs.send(
+                JSON.stringify({
+                  type: "chat",
+                  data: {
+                    senderId: userId,
+                    content: data.content,
+                    timestamp: new Date().toISOString(),
+                  },
+                })
+              );
             }
             break;
         }
@@ -90,4 +97,4 @@ export const broadcastMessage = (message: any) => {
 // 获取在线用户列表
 export const getOnlineUsers = () => {
   return Array.from(onlineUsers.keys());
-}; 
+};

@@ -113,7 +113,11 @@ const CourseListPage: React.FC = () => {
         </View>
       </View>
 
-      <InfiniteLoading hasMore={courses.length < total} onLoadMore={loadMore}>
+      <InfiniteLoading
+        hasMore={courses.length < total}
+        onLoadMore={loadMore}
+        threshold={100}
+      >
         <View className='course-list'>
           {courses.map((course, index) => (
             <View

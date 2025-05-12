@@ -125,6 +125,8 @@ const EMOJI_LIST = [
   }
 ];
 
+let ws: WebSocket | null = null;
+
 const ChatRoom: FC = () => {
   const router = useRouter();
   const scrollViewRef = useRef<any>(null);
@@ -525,6 +527,50 @@ const ChatRoom: FC = () => {
         Taro.setStorageSync('chatSessions', sessions);
       }
     }
+  }, [sessionId]);
+
+  useEffect(() => {
+    const token = Taro.getStorageSync('token');
+    Taro.connectSocket({
+      url: `ws://localhost:3000?token=${token}`
+    });
+    Taro.onSocketOpen(() => {
+      console.log('WebSocket 连接已建立');
+    });
+
+    Taro.onSocketMessage((event) => {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'chat') {
+        if (msg.data.sessionId == sessionId) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: Date.now(),
+              type: msg.data.type,
+              content: msg.data.content,
+              fileName: msg.data.fileName,
+              fileSize: msg.data.fileSize,
+              time: msg.data.created_at,
+              isSelf: false,
+              avatar: '', // 可补充
+              name: '' // 可补充
+            }
+          ]);
+        }
+      }
+    });
+
+    Taro.onSocketClose(() => {
+      console.log('WebSocket 连接已关闭');
+    });
+
+    Taro.onSocketError((err) => {
+      console.error('WebSocket 错误:', err);
+    });
+
+    return () => {
+      Taro.closeSocket();
+    };
   }, [sessionId]);
 
   const scrollToBottom = () => {

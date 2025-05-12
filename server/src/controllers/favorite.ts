@@ -182,6 +182,20 @@ export const updateFavoriteTags = async (req: Request, res: Response) => {
           "INSERT INTO favorite_tag_relations (favorite_id, tag_id) VALUES ?",
           [tagValues]
         );
+
+        // 获取标签名称并更新 tag_count
+        const [tags] = await connection.query<RowDataPacket[]>(
+          "SELECT name FROM tags WHERE id IN (?)",
+          [tagIds]
+        );
+        
+        for (const tag of tags) {
+          await connection.query(
+            `INSERT INTO tag_count (user_id, tag_name, count) VALUES (?, ?, 1)
+             ON DUPLICATE KEY UPDATE count = count + 1`,
+            [userId, tag.name]
+          );
+        }
       }
 
       await connection.commit();

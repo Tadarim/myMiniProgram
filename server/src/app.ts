@@ -22,6 +22,7 @@ import chatRouter from "./routes/chat";
 import favoriteRouter from "./routes/favorite";
 import historyRouter from "./routes/history";
 import dashboardRouter from "./routes/dashboard";
+import recommendRouter from "./routes/recommend";
 
 const app = express();
 const server = http.createServer(app);
@@ -61,6 +62,7 @@ app.use("/api/posts", fileUpload(fileUploadConfig), postRoutes);
 app.use("/api/upload", fileUpload(fileUploadConfig), uploadRouter);
 app.use("/api/user", userServer);
 app.use("/api/exercise", exerciseRoutes);
+app.use("/api/recommend", recommendRouter);
 
 app.use((req, res) => {
   res.status(404).json({

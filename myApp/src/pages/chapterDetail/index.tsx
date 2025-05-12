@@ -10,19 +10,23 @@ import {
   uploadFile,
   previewImage,
   getStorageSync,
-  setNavigationBarTitle
+  setNavigationBarTitle,
+  useRouter
 } from '@tarojs/taro';
 
 import { useState } from 'react';
 
 import { BASE_URL, API_ROUTES } from '@/api/constant';
+import RecommendModal from '@/components/modal';
 import NavigationBar from '@/components/navigationBar';
 import { Chapter, Material, MaterialType } from '@/types/course';
 
 import './index.less';
 
 const ChapterDetail = () => {
+  const router = useRouter();
   const [chapter, setChapter] = useState<Chapter | null>(null);
+  const [showRecommendModal, setShowRecommendModal] = useState(false);
 
   useLoad((options) => {
     if (options.chapter) {
@@ -32,6 +36,11 @@ const ChapterDetail = () => {
       setNavigationBarTitle({
         title: chapterData.title
       });
+
+      // 如果是最后一章，直接显示推荐弹窗
+      if (chapterData.isLastChapter) {
+        setShowRecommendModal(true);
+      }
     }
   });
 
@@ -376,6 +385,12 @@ const ChapterDetail = () => {
           </Button>
         </View>
       </View>
+
+      <RecommendModal
+        visible={showRecommendModal}
+        onClose={() => setShowRecommendModal(false)}
+        triggerType='course'
+      />
     </View>
   );
 };

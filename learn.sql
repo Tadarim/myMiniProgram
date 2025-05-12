@@ -105,7 +105,11 @@ CREATE TABLE IF NOT EXISTS favorites (
     target_type ENUM('course', 'exercise', 'post') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    UNIQUE KEY unique_favorite (user_id, target_id, target_type)
+    UNIQUE KEY unique_favorite (
+        user_id,
+        target_id,
+        target_type
+    )
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- 用户历史记录表（支持课程、习题、帖子）
@@ -116,7 +120,11 @@ CREATE TABLE IF NOT EXISTS history_records (
     target_type ENUM('course', 'exercise', 'post') NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
-    UNIQUE KEY unique_history (user_id, target_id, target_type)
+    UNIQUE KEY unique_history (
+        user_id,
+        target_id,
+        target_type
+    )
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
 
 -- 日程表
@@ -188,6 +196,7 @@ CREATE TABLE IF NOT EXISTS posts (
 CREATE TABLE IF NOT EXISTS tags (
     id INT PRIMARY KEY AUTO_INCREMENT,
     name VARCHAR(50) NOT NULL UNIQUE,
+    category VARCHAR(20) DEFAULT NULL COMMENT '标签类型，如课程、帖子、通用等',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -829,3 +838,211 @@ ADD COLUMN type ENUM('single', 'group') NOT NULL DEFAULT 'single';
 ('问题求助', 'post'),
 ('资源推荐', 'post'),
 ('讨论交流', 'post');
+
+-- 用户-标签兴趣统计表
+CREATE TABLE IF NOT EXISTS tag_count (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL, -- 用户ID
+    tag_name VARCHAR(64) NOT NULL, -- 标签名
+    count INT DEFAULT 0, -- 用户对该标签的兴趣计数
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY idx_user_tag (user_id, tag_name)
+);
+
+CREATE TABLE IF NOT EXISTS user_similarity (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_a INT NOT NULL, -- 目标用户ID
+    user_b INT NOT NULL, -- 相似用户ID
+    similarity FLOAT NOT NULL, -- 相似度分数
+    taglist TEXT, -- 推荐标签（逗号分隔）
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY idx_user_pair (user_a, user_b)
+);
+
+CREATE TABLE IF NOT EXISTS course_tags (
+    course_id INT NOT NULL,
+    tag_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (course_id, tag_id),
+    FOREIGN KEY (course_id) REFERENCES courses (id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS exercise_tags (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    exercise_set_id INT NOT NULL,
+    tag_id INT NOT NULL,
+    FOREIGN KEY (exercise_set_id) REFERENCES exercise_sets (id) ON DELETE CASCADE,
+    FOREIGN KEY (tag_id) REFERENCES tags (id) ON DELETE CASCADE,
+    UNIQUE KEY unique_exercise_tag (exercise_set_id, tag_id)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4;
+
+INSERT INTO
+    courses (
+        title,
+        description,
+        cover,
+        rating,
+        status,
+        view_count
+    )
+VALUES (
+        'Java编程基础',
+        '学习Java语言的基本语法和开发技巧',
+        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=500&q=80',
+        4.5,
+        'published',
+        0
+    ),
+    (
+        'C语言入门',
+        'C语言基础知识与编程实践',
+        'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=500&q=80',
+        4.3,
+        'published',
+        0
+    ),
+    (
+        '前端开发实战',
+        'HTML、CSS、JavaScript综合应用',
+        'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=500&q=80',
+        4.7,
+        'published',
+        0
+    ),
+    (
+        '后端开发入门',
+        'Node.js与Express框架开发',
+        'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=500&q=80',
+        4.6,
+        'published',
+        0
+    ),
+    (
+        '数据分析基础',
+        '数据分析流程与常用工具',
+        'https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=500&q=80',
+        4.8,
+        'published',
+        0
+    ),
+    (
+        '人工智能导论',
+        'AI基础理论与应用场景',
+        'https://images.unsplash.com/photo-1503676382389-4809596d5290?w=500&q=80',
+        4.9,
+        'published',
+        0
+    ),
+    (
+        '机器学习实战',
+        '机器学习算法与案例',
+        'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500&q=80',
+        4.7,
+        'published',
+        0
+    ),
+    (
+        '深度学习入门',
+        '神经网络与深度学习基础',
+        'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=500&q=80',
+        4.8,
+        'published',
+        0
+    ),
+    (
+        'Python数据可视化',
+        '用Python进行数据可视化',
+        'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=500&q=80',
+        4.6,
+        'published',
+        0
+    ),
+    (
+        'Web全栈开发',
+        '前后端一体化开发实践',
+        'https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=500&q=80',
+        4.7,
+        'published',
+        0
+    ),
+    (
+        'Linux操作系统',
+        'Linux系统基础与命令行',
+        'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=500&q=80',
+        4.5,
+        'published',
+        0
+    ),
+    (
+        '网络安全基础',
+        '网络安全原理与防护',
+        'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=500&q=80',
+        4.4,
+        'published',
+        0
+    ),
+    (
+        '算法与数据结构',
+        '常用算法与数据结构讲解',
+        'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=500&q=80',
+        4.9,
+        'published',
+        0
+    ),
+    (
+        '移动开发基础',
+        'Android与iOS开发入门',
+        'https://images.unsplash.com/photo-1465101046530-73398c7f28ca?w=500&q=80',
+        4.3,
+        'published',
+        0
+    ),
+    (
+        '云计算导论',
+        '云计算基础与应用',
+        'https://images.unsplash.com/photo-1503676382389-4809596d5290?w=500&q=80',
+        4.6,
+        'published',
+        0
+    ),
+    (
+        '大数据技术',
+        '大数据平台与分析',
+        'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=500&q=80',
+        4.7,
+        'published',
+        0
+    ),
+    (
+        '软件测试基础',
+        '软件测试理论与实践',
+        'https://images.unsplash.com/photo-1515378791036-0648a3ef77b2?w=500&q=80',
+        4.5,
+        'published',
+        0
+    ),
+    (
+        '项目管理实务',
+        'IT项目管理流程与工具',
+        'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=500&q=80',
+        4.4,
+        'published',
+        0
+    ),
+    (
+        '产品设计基础',
+        '产品设计流程与方法',
+        'https://images.unsplash.com/photo-1465101178521-c1a9136a3b99?w=500&q=80',
+        4.6,
+        'published',
+        0
+    ),
+    (
+        '区块链技术',
+        '区块链原理与开发',
+        'https://images.unsplash.com/photo-1519125323398-675f0ddb6308?w=500&q=80',
+        4.8,
+        'published',
+        0
+    );

@@ -4,7 +4,8 @@ import Taro from '@tarojs/taro';
 import { Search } from '@nutui/icons-react-taro';
 import { useState, useEffect } from 'react';
 
-import { searchGroups, getRecommendedGroups, joinGroup } from '@/api/chat';
+import { searchGroups, joinGroup } from '@/api/chat';
+import { getRecommendedGroups as getRecommendedGroupsApi } from '@/api/recommend';
 import NavigationBar from '@/components/navigationBar';
 
 import './index.less';
@@ -17,7 +18,7 @@ interface GroupItem {
   member_count: number;
   created_at: string;
   is_member: boolean;
-  session_id?: number;  // 添加会话ID字段
+  session_id?: number; // 添加会话ID字段
 }
 
 const DiscoverGroupPage = () => {
@@ -33,12 +34,12 @@ const DiscoverGroupPage = () => {
   const fetchRecommendedGroups = async () => {
     try {
       setRecommendLoading(true);
-      const res = await searchGroups('', true); // 第二个参数表示获取推荐群组
-      if (res.statusCode === 200 && res.data.code === 200) {
-        setRecommendedGroups(res.data.data || []);
+      const res = await getRecommendedGroupsApi();
+      if (res.code === 200 && res.success) {
+        setRecommendedGroups(res.data || []);
       } else {
         setRecommendedGroups([]);
-        console.error('获取推荐群组失败:', res.data.message);
+        console.error('获取推荐群组失败:', res.message);
       }
     } catch (error) {
       console.error('获取推荐群组失败:', error);
@@ -94,7 +95,9 @@ const DiscoverGroupPage = () => {
       Taro.navigateTo({
         url: `/pages/chatRoom/index?id=${group.id}&name=${encodeURIComponent(
           group.name
-        )}&type=group&sessionId=${group.session_id || group.id}&avatar=${encodeURIComponent(group.avatar || '')}`
+        )}&type=group&sessionId=${
+          group.session_id || group.id
+        }&avatar=${encodeURIComponent(group.avatar || '')}`
       });
       return;
     }
@@ -124,7 +127,11 @@ const DiscoverGroupPage = () => {
           Taro.navigateTo({
             url: `/pages/chatRoom/index?id=${
               group.id
-            }&name=${encodeURIComponent(group.name)}&type=group&sessionId=${sessionId}&avatar=${encodeURIComponent(group.avatar || '')}`
+            }&name=${encodeURIComponent(
+              group.name
+            )}&type=group&sessionId=${sessionId}&avatar=${encodeURIComponent(
+              group.avatar || ''
+            )}`
           });
         }, 1000);
       } else {
@@ -194,7 +201,9 @@ const DiscoverGroupPage = () => {
             lazyLoad
           />
         ) : (
-          <Text className='avatar-placeholder'>{group.name.charAt(0).toUpperCase()}</Text>
+          <Text className='avatar-placeholder'>
+            {group.name.charAt(0).toUpperCase()}
+          </Text>
         )}
       </View>
       <View className='group-info'>
@@ -241,7 +250,9 @@ const DiscoverGroupPage = () => {
           confirmType='search'
         />
         {searchValue.trim() && (
-          <View className='search-button' onClick={handleSearch}>搜索</View>
+          <View className='search-button' onClick={handleSearch}>
+            搜索
+          </View>
         )}
       </View>
 
@@ -250,7 +261,9 @@ const DiscoverGroupPage = () => {
         <View className='search-history'>
           <View className='history-header'>
             <Text className='history-title'>搜索历史</Text>
-            <Text className='clear-history' onClick={handleClearHistory}>清空</Text>
+            <Text className='clear-history' onClick={handleClearHistory}>
+              清空
+            </Text>
           </View>
           <View className='history-list'>
             {searchHistory.map((item, index) => (
@@ -278,7 +291,7 @@ const DiscoverGroupPage = () => {
             className='recommend-scroll'
             showScrollbar={false}
           >
-            {recommendedGroups.map(group => (
+            {recommendedGroups.map((group) => (
               <View
                 key={group.id}
                 className='recommend-card'
@@ -293,12 +306,18 @@ const DiscoverGroupPage = () => {
                       lazyLoad
                     />
                   ) : (
-                    <Text className='avatar-placeholder'>{group.name.charAt(0).toUpperCase()}</Text>
+                    <Text className='avatar-placeholder'>
+                      {group.name.charAt(0).toUpperCase()}
+                    </Text>
                   )}
                 </View>
                 <View className='recommend-name'>{group.name}</View>
                 <View className='recommend-count'>{group.member_count}人</View>
-                <View className={`recommend-status ${group.is_member ? 'joined' : ''}`}>
+                <View
+                  className={`recommend-status ${
+                    group.is_member ? 'joined' : ''
+                  }`}
+                >
                   {group.is_member ? '已加入' : '加入'}
                 </View>
               </View>

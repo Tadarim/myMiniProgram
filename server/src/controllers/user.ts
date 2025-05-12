@@ -3,10 +3,8 @@ import {
   UserInfo,
   ApiResponse,
   Gender,
-  LearningLevel,
   LearningStyle,
   TimePreference,
-  LearningProfile,
   UserRow,
 } from "../types/user";
 import { query } from "../utils/query";

@@ -7,10 +7,10 @@ import { useEffect, useState } from 'react';
 import Course from './components/course';
 import Navigation from './components/navigation';
 
-import { courseService } from '@/api/course';
-import { exerciseService } from '@/api/exercise';
+import { getRecommendations } from '@/api/recommend';
 import Banner from '@/components/banner';
 import List from '@/components/list';
+import RecommendModal from '@/components/modal';
 import NavigationBar from '@/components/navigationBar';
 import Title from '@/components/title';
 import { Course as CourseType } from '@/types/course';
@@ -20,8 +20,9 @@ import './index.less';
 
 function Index() {
   const [courseList, setCourseList] = useState<CourseType[]>([]);
-  const [hotExerciseList, setHotExerciseList] = useState<any[]>([]);
+  const [exerciseList, setExerciseList] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showRecommendModal, setShowRecommendModal] = useState(false);
 
   const handleExerciseClick = (exercise) => {
     navigateTo({
@@ -38,30 +39,33 @@ function Index() {
       navigateTo({ url: '/pages/login/index' });
     }
 
-    const fetchCourseList = async () => {
-      const res = await courseService.getCourseList({
-        page: 1,
-        pageSize: 10
-      });
-      setCourseList(res.data.slice(0, 4));
-    };
+    const isFirstLogin = Taro.getStorageSync('isFirstLogin');
+    if (isFirstLogin) {
+      setShowRecommendModal(true);
+    }
+    Taro.setStorageSync('isFirstLogin', true);
 
-    const fetchHotExercises = async () => {
+    const fetchRecommendData = async () => {
       try {
         setLoading(true);
-        const res = await exerciseService.getPopularExercises(5);
+        const res = await getRecommendations();
         if (res.code === 200 && res.success) {
-          setHotExerciseList(res.data);
+          setCourseList(res.data.courses.slice(0, 4));
+          setExerciseList(res.data.exercises);
+        } else {
+          setCourseList([]);
+          setExerciseList([]);
         }
-      } catch (error) {
-        console.error('获取热门题库失败', error);
+      } catch (e) {
+        console.error('获取推荐内容失败', e);
+        setCourseList([]);
+        setExerciseList([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchCourseList();
-    fetchHotExercises();
+    fetchRecommendData();
   }, []);
 
   return (
@@ -78,13 +82,13 @@ function Index() {
         />
         <Course courseList={courseList} />
         <Title
-          text='热门题库'
+          text='推荐题库'
           onMoreClick={() => {
             Taro.navigateTo({ url: '/pages/exerciseList/index' });
           }}
         />
         <List
-          contentList={hotExerciseList}
+          contentList={exerciseList}
           loading={loading}
           onItemClick={handleExerciseClick}
           itemSuffix={() => (
@@ -101,6 +105,10 @@ function Index() {
           )}
         />
       </View>
+      <RecommendModal
+        visible={showRecommendModal}
+        onClose={() => setShowRecommendModal(false)}
+      />
     </View>
   );
 }

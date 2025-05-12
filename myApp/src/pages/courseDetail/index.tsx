@@ -127,9 +127,15 @@ const CourseDetail = () => {
   };
 
   const handleChapterClick = (chapter: Chapter) => {
+    // 判断是否是最后一章（order 最大的就是最后一章）
+    const isLastChapter = chapter.order === Math.max(...courseInfo.chapters.map(c => c.order));
+
     Taro.navigateTo({
       url: genUrl('/pages/chapterDetail/index', {
-        chapter: JSON.stringify(chapter)
+        chapter: JSON.stringify({
+          ...chapter,
+          isLastChapter
+        })
       })
     });
   };

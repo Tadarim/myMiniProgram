@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import fs from "fs";
 import * as fsPromises from "fs/promises";
+import { sendMessage as wsSendMessage } from '../services/websocket';
 
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
@@ -181,7 +182,13 @@ export const getChatSessions = async (req: Request, res: Response) => {
           cs.type,
           cs.last_message,
           cs.last_time,
-          cs.unread_count,
+          (
+            SELECT COUNT(*) 
+            FROM chat_messages 
+            WHERE session_id = cs.id 
+            AND sender_id != ? 
+            AND is_read = FALSE
+          ) as unread_count,
           CASE 
             WHEN cs.user_id = ? THEN u.id
             ELSE cs.user_id
@@ -199,7 +206,7 @@ export const getChatSessions = async (req: Request, res: Response) => {
         JOIN users u_alt ON cs.user_id = u_alt.id
         WHERE (cs.user_id = ? OR cs.target_id = ?) AND cs.type = 'single'
         ORDER BY cs.last_time DESC`,
-        [userId, userId, userId, userId, userId]
+        [userId, userId, userId, userId, userId, userId]
       );
 
       res.json({
@@ -257,10 +264,6 @@ export const getChatMessages = async (req: Request, res: Response) => {
     const { sessionId } = req.params;
     const { page = 1, pageSize = 20 } = req.query;
 
-    console.log(
-      `[getChatMessages] 开始获取消息，用户ID: ${userId}, 会话ID: ${sessionId}, 页码: ${page}, 每页: ${pageSize}`
-    );
-
     if (!userId) {
       return res.status(401).json({
         code: 401,
@@ -276,9 +279,6 @@ export const getChatMessages = async (req: Request, res: Response) => {
     );
 
     if (!sessions.length) {
-      console.log(
-        `[getChatMessages] 会话不存在或无权访问，sessionId: ${sessionId}, userId: ${userId}`
-      );
       return res.status(404).json({
         code: 404,
         success: false,
@@ -287,9 +287,6 @@ export const getChatMessages = async (req: Request, res: Response) => {
     }
 
     const session = sessions[0];
-    console.log(
-      `[getChatMessages] 找到会话类型: ${session.type}, user_id: ${session.user_id}, target_id: ${session.target_id}`
-    );
 
     // 如果是群聊，验证用户是否为群成员
     if (session.type === "group") {
@@ -299,9 +296,6 @@ export const getChatMessages = async (req: Request, res: Response) => {
       );
 
       if (!members.length) {
-        console.log(
-          `[getChatMessages] 用户不是群成员，groupId: ${session.group_id}, userId: ${userId}`
-        );
         return res.status(403).json({
           code: 403,
           success: false,
@@ -315,8 +309,6 @@ export const getChatMessages = async (req: Request, res: Response) => {
 
     // 获取消息时先不使用system_messages表，避免表结构问题
     try {
-      console.log(`[getChatMessages] 查询消息，sessionId: ${sessionId}`);
-
       // 获取普通消息
       const [messages] = await pool.query<RowDataPacket[]>(
         `SELECT 
@@ -353,12 +345,7 @@ export const getChatMessages = async (req: Request, res: Response) => {
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
 
-      console.log(
-        `[getChatMessages] 查询到 ${messages.length} 条普通消息和 ${systemMessages.length} 条系统消息`
-      );
-
       // 为文件和图片类型的消息自动生成新的带token的URL
-      console.log(`[getChatMessages] 开始处理文件和图片URL`);
       const messagesWithUpdatedUrls = allMessages.map((msg) => {
         if (
           msg.message_type === "chat" &&
@@ -403,9 +390,6 @@ export const getChatMessages = async (req: Request, res: Response) => {
       // 标记消息为已读并更新未读计数
       await updateMessageReadStatus(session, sessionId, userId);
 
-      console.log(
-        `[getChatMessages] 成功获取消息，返回 ${messagesWithUpdatedUrls.length} 条消息`
-      );
       return res.json({
         code: 200,
         success: true,
@@ -624,6 +608,23 @@ export const sendMessage = async (req: Request, res: Response) => {
             [sessionId, receiverId]
           );
         }
+
+        // 新增：WebSocket推送
+        if (receiverId !== userId) {
+          wsSendMessage(receiverId, {
+            type: 'chat',
+            data: {
+              sessionId,
+              senderId: userId,
+              content,
+              type,
+              fileUrl,
+              fileName,
+              fileSize,
+              created_at: new Date(),
+            }
+          });
+        }
       } else if (session.type === "group") {
         // 更新群聊会话的最后消息和时间
         await connection.query(
@@ -641,6 +642,29 @@ export const sendMessage = async (req: Request, res: Response) => {
            WHERE cs.group_id = ? AND cgm.user_id != ?`,
           [session.group_id, userId]
         );
+
+        // 新增：WebSocket推送给所有群成员（排除自己）
+        const [groupMembers] = await connection.query(
+          'SELECT user_id FROM chat_group_members WHERE group_id = ?',
+          [session.group_id]
+        );
+        for (const member of groupMembers as any[]) {
+          if (member.user_id !== userId) {
+            wsSendMessage(member.user_id, {
+              type: 'chat',
+              data: {
+                sessionId,
+                senderId: userId,
+                content,
+                type,
+                fileUrl,
+                fileName,
+                fileSize,
+                created_at: new Date(),
+              }
+            });
+          }
+        }
       }
 
       await connection.commit();

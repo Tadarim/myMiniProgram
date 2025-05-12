@@ -8,8 +8,6 @@ import { v4 as uuidv4 } from "uuid";
 import dotenv from "dotenv";
 import fs from "fs";
 import * as fsPromises from "fs/promises";
-// @ts-ignore
-const Segment = require("segmentit");
 
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
@@ -400,6 +398,13 @@ export const createPost = async (req: Request, res: Response) => {
           await connection.query(
             "INSERT INTO post_tags (post_id, tag_id) VALUES (?, ?)",
             [postId, tagId]
+          );
+
+          // 更新 tag_count
+          await connection.query(
+            `INSERT INTO tag_count (user_id, tag_name, count) VALUES (?, ?, 1)
+             ON DUPLICATE KEY UPDATE count = count + 1`,
+            [userId, tagName]
           );
         }
       }

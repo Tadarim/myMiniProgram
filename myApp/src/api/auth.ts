@@ -19,7 +19,6 @@ export interface VerificationResponse {
 }
 
 export const authService = {
-  // 邮箱登录/注册
   async loginWithEmail(
     email: string,
     password: string
@@ -41,7 +40,6 @@ export const authService = {
     }
   },
 
-  // 发送验证码
   async sendVerificationCode(email: string): Promise<VerificationResponse> {
     try {
       const response = await request({
@@ -60,7 +58,6 @@ export const authService = {
     }
   },
 
-  // 重置密码
   async resetPassword(
     email: string,
     code: string,
@@ -83,7 +80,6 @@ export const authService = {
     }
   },
 
-  // 微信登录
   async loginWithWeChat(code: string): Promise<LoginResponse> {
     try {
       const response = await request({
@@ -102,7 +98,6 @@ export const authService = {
     }
   },
 
-  // 更新用户信息
   async updateUserInfo(
     userInfo: Partial<UserInfo>
   ): Promise<ApiResponse<UserInfo>> {

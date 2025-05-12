@@ -1,0 +1,189 @@
+.recommend-modal-center {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+
+  .modal-mask {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: transparent;
+  }
+
+  .modal-content-center {
+    position: relative;
+    background: #fff;
+    border-radius: 16px;
+    min-width: 320px;
+    min-height: 200px;
+    max-width: 90vw;
+    max-height: 80vh;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    padding: 32px 24px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10001;
+  }
+
+  .modal-header-center {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+
+    .title {
+      font-size: 16px;
+      font-weight: 500;
+      color: #222;
+      margin-bottom: 8px;
+    }
+    .close {
+      font-size: 32px;
+      color: #999;
+      padding: 0 20px;
+      cursor: pointer;
+    }
+  }
+
+  .modal-body-center {
+    width: 100%;
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .recommend-post-card {
+    width: 100%;
+    background: #fff;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: 16px 0;
+    .post-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 20px;
+        margin-right: 10px;
+      }
+      .username {
+        font-weight: bold;
+        margin-right: 8px;
+      }
+      .time-ago {
+        color: #aaa;
+        font-size: 12px;
+        margin-right: 8px;
+      }
+      .post-type {
+        margin-left: auto;
+      }
+    }
+    .post-content {
+      margin-bottom: 6px;
+      .content-text {
+        font-size: 14px;
+        color: #333;
+      }
+    }
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 8px 0;
+    }
+    .post-footer {
+      display: flex;
+      gap: 18px;
+      .interaction {
+        display: flex;
+        gap: 18px;
+        align-items: center;
+      }
+      .interaction-item {
+        display: flex;
+        align-items: center;
+        font-size: 18px;
+        color: #888;
+      }
+    }
+  }
+
+  .recommend-group-card,
+  .recommend-user-card {
+    width: 100%;
+    background: #f8f8f8;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    padding: 16px 10px;
+    .avatar-container {
+      position: relative;
+      margin-right: 16px;
+      .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #e6f7ff;
+        object-fit: cover;
+      }
+      .group-icon {
+        position: absolute;
+        right: -8px;
+        bottom: -8px;
+        background: #4a90e2;
+        color: #fff;
+        font-size: 12px;
+        border-radius: 8px 0 8px 0;
+        padding: 0 6px;
+      }
+    }
+    .group-info,
+    .user-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      .name {
+        font-size: 18px;
+        font-weight: bold;
+        color: #222;
+        margin-bottom: 4px;
+      }
+      .desc {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 4px;
+      }
+      .extra {
+        font-size: 14px;
+        color: #999;
+      }
+    }
+  }
+
+  .loading,
+  .empty {
+    width: 100%;
+    text-align: center;
+    color: #999;
+    padding: 40px 0;
+  }
+}

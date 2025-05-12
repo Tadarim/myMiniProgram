@@ -228,7 +228,6 @@ const CourseManagementPage: React.FC = () => {
       onOk: async () => {
         try {
           const res = await deleteChapter(chapterId);
-          console.log("删除章节结果:", res);
           if (res.success) {
             // 更新本地状态
             const updatedChapters = currentCourse.chapters.filter(

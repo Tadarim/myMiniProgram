@@ -1,10 +1,10 @@
 .post-item {
   margin-bottom: 10px;
-  border-radius: 0; // 可以移除圆角，或保留用于卡片样式
-  overflow: visible; // 改回 visible
-  background-color: #fff; // 保持白色背景
-  padding: 15px; // 给整个卡片添加内边距
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); // 可以加个轻微阴影
+  border-radius: 0;
+  overflow: visible;
+  background-color: #fff;
+  padding: 15px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 
   .menu-list {
     padding: 16px;
@@ -97,42 +97,31 @@
           color: #666 !important;
           margin-right: 8px;
         }
-
-        .menu-text {
-          // 继承 .menu-item 的 color
-        }
       }
     }
   }
 }
 
 .post-content {
-  // 移除 padding，因为父元素已有
-  // 移除 z-index 和 position
-  margin-bottom: 10px; // 内容和图片/底部间距
+  margin-bottom: 10px;
 
   .content-text {
-    color: #333; // !! 改为深色 !!
+    color: #333;
     font-size: 15px;
     line-height: 1.6;
-    white-space: pre-wrap; // 保持换行符和空格
-    word-break: break-word; // 允许单词内换行
+    white-space: pre-wrap;
+    word-break: break-word;
   }
 }
 
-/* !! 新增：帖子图片容器和图片样式 !! */
 .post-image-container {
-  margin-bottom: 10px; // 图片和底部间距
-  // 可以限制图片最大宽度或高度
+  margin-bottom: 10px;
   max-width: 100%;
-  overflow: hidden; // 如果需要给图片加圆角
-  // border-radius: 6px; // 可选：给图片加圆角
+  overflow: hidden;
 }
 .post-image {
-  display: block; // 防止图片下方有空隙
-  width: 100%; // 图片宽度充满容器
-  // height: auto; // 如果 mode='widthFix'
-  // max-height: 300px; // 可选：限制最大高度
+  display: block;
+  width: 100%;
 }
 
 .post-footer {
