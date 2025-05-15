@@ -148,20 +148,15 @@ const ChatRoom: FC = () => {
   const panelHeight = 260;
   const inputHeight = 60;
 
-  // 创建或获取会话
   const createOrGetSession = async () => {
     try {
       Taro.showLoading({ title: '加载中...' });
 
-      // 获取targetId - 目标用户ID
       let targetUserId;
 
-      // 优先从targetId参数获取（从帖子详情页等跳转）
       if (router.params.targetId) {
         targetUserId = parseInt(router.params.targetId, 10);
-      }
-      // 其次从id参数获取（从用户列表页等跳转，且type是'single'）
-      else if (router.params.id && router.params.type === 'single') {
+      } else if (router.params.id && router.params.type === 'single') {
         targetUserId = parseInt(router.params.id, 10);
       } else {
         throw new Error('缺少目标用户ID');
@@ -179,7 +174,6 @@ const ChatRoom: FC = () => {
           setTargetName(res.data.data.target_name);
         }
 
-        // 同步更新会话ID（不使用异步的setState）
         return newSessionId;
       } else {
         throw new Error(`创建会话失败: ${res.data.message || '未知错误'}`);
@@ -204,7 +198,6 @@ const ChatRoom: FC = () => {
     try {
       setLoading(true);
 
-      // 优先使用提供的sessionId，否则使用状态中的sessionId
       const chatSessionId =
         providedSessionId !== undefined ? providedSessionId : sessionId;
 
@@ -562,10 +555,6 @@ const ChatRoom: FC = () => {
 
     Taro.onSocketClose(() => {
       console.log('WebSocket 连接已关闭');
-    });
-
-    Taro.onSocketError((err) => {
-      console.error('WebSocket 错误:', err);
     });
 
     return () => {

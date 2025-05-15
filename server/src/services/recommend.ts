@@ -60,10 +60,9 @@ function getRecommendTag(relateTagList: string[], userVector: any[]): string[] {
 
 // 更新用户相似度表
 async function updateUserSimilarity(userId: number) {
-  // 1. 获取目标用户兴趣向量
   const targetUserVector = await getInterestVectorByUser(userId);
   const relateTagList = targetUserVector.map((el) => el.name);
-  // 2. 获取所有其他用户的兴趣向量原始数据
+
   const [rows] = await pool.query(
     "SELECT user_id, tag_name, count FROM tag_count WHERE user_id != ?",
     [userId]
@@ -74,7 +73,7 @@ async function updateUserSimilarity(userId: number) {
     if (!otherUserVectors[el.user_id]) otherUserVectors[el.user_id] = [];
     otherUserVectors[el.user_id].push({ name: el.tag_name, count: el.count });
   }
-  // 3. 计算相似度和推荐标签
+
   const userSimilarityList: {
     user: string;
     similarity: number;
@@ -90,7 +89,7 @@ async function updateUserSimilarity(userId: number) {
     const tagList = getRecommendTag(relateTagList, otherVector);
     userSimilarityList.push({ user, similarity, tagList });
   }
-  // 4. 写入 user_similarity 表
+
   for (let el of userSimilarityList) {
     if (isNaN(el.similarity) || !el.user) continue;
     const [exist] = await pool.query(
@@ -113,7 +112,6 @@ async function updateUserSimilarity(userId: number) {
 
 // 获取推荐用户
 async function getRecommendedUsers(userId: number, limit = 5) {
-  // 先查出没聊过的相似用户
   const [rows] = await pool.query(
     `SELECT user_b as id, similarity FROM user_similarity 
      WHERE user_a = ? 
@@ -129,7 +127,6 @@ async function getRecommendedUsers(userId: number, limit = 5) {
     [userId, userId, userId, userId, limit]
   );
 
-  // 如果没有相似用户，返回活跃用户（同样排除有会话的）
   if (!(rows as any[]).length) {
     const [activeUsers] = await pool.query(
       `SELECT u.id, u.username, u.avatar, GROUP_CONCAT(DISTINCT t.name) as tags FROM users u
@@ -191,7 +188,6 @@ async function getRecommendedTags(userId: number, limit = 10) {
 async function getRecommendedExercises(userId: number, limit = 5) {
   const tags = await getRecommendedTags(userId, 10);
 
-  // 如果没有推荐标签，返回热门题目
   if (!tags.length) {
     const [hotExercises] = await pool.query(
       `SELECT es.*, 
@@ -225,7 +221,6 @@ async function getRecommendedExercises(userId: number, limit = 5) {
 async function getRecommendedGroups(userId: number, limit = 5) {
   const tags = await getRecommendedTags(userId, 10);
 
-  // 如果没有推荐标签，返回活跃小组
   if (!tags.length) {
     const [activeGroups] = await pool.query(
       `SELECT g.*, 
@@ -266,7 +261,6 @@ async function getRecommendedGroups(userId: number, limit = 5) {
 async function getRecommendedPosts(userId: number, limit = 5) {
   const tags = await getRecommendedTags(userId, 10);
 
-  // 如果没有推荐标签，返回热门帖子
   if (!tags.length) {
     const [hotPosts]: any[] = await pool.query(
       `SELECT p.*, u.username, u.avatar, 
@@ -287,7 +281,7 @@ async function getRecommendedPosts(userId: number, limit = 5) {
       LIMIT ?`,
       [userId, userId, userId, limit]
     );
-    // 格式化 time_ago 字段
+
     return (hotPosts as any[]).map((row: any) => ({
       ...row,
       time_ago: formatTimeAgo(row.time_ago),
@@ -313,7 +307,7 @@ async function getRecommendedPosts(userId: number, limit = 5) {
     LIMIT ?`,
     [userId, userId, userId, limit]
   );
-  // 格式化 time_ago 字段
+
   return (rows as any[]).map((row: any) => ({
     ...row,
     time_ago: formatTimeAgo(row.time_ago),
@@ -323,7 +317,7 @@ async function getRecommendedPosts(userId: number, limit = 5) {
 // 获取推荐课程
 async function getRecommendedCourses(userId: number, limit = 5) {
   const tags = await getRecommendedTags(userId, 10);
-  // 没有标签，推荐热门课程
+
   if (!tags.length) {
     const [hotCourses] = await pool.query(
       `SELECT c.* FROM courses c WHERE c.status = 'published' ORDER BY c.rating DESC, c.created_at DESC LIMIT ?`,
@@ -331,7 +325,7 @@ async function getRecommendedCourses(userId: number, limit = 5) {
     );
     return hotCourses;
   }
-  // 有标签，推荐相关课程
+
   const [rows] = await pool.query(
     `SELECT c.* FROM courses c
      LEFT JOIN course_tags ct ON c.id = ct.course_id

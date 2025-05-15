@@ -32,7 +32,6 @@ const DashboardPage: React.FC = () => {
     return <Spin style={{ marginTop: 100 }} />;
   }
 
-  // 1. 数字卡片
   const statCards = [
     { title: "课程总数", value: data.courseCount },
     { title: "习题集总数", value: data.exerciseCount },
@@ -40,7 +39,6 @@ const DashboardPage: React.FC = () => {
     { title: "用户总数", value: data.userCount },
   ];
 
-  // 2. 趋势折线图
   const trendConfig = (
     trendData: Array<{ date: string; count: number }>,
     name: string
@@ -55,7 +53,6 @@ const DashboardPage: React.FC = () => {
     meta: { date: { alias: "日期" }, count: { alias: "数量" } },
   });
 
-  // 3. 热门排行
   const barConfig = (list: any[], xField: string, yField: string) => ({
     data: list,
     xField,
@@ -66,7 +63,6 @@ const DashboardPage: React.FC = () => {
     meta: { [xField]: { alias: "数量" }, [yField]: { alias: "名称" } },
   });
 
-  // 4. 饼图
   const pieConfig = (list: any[], angleField: string, colorField: string) => ({
     appendPadding: 10,
     data: list,

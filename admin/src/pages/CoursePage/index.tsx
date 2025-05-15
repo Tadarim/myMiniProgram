@@ -55,7 +55,6 @@ const CourseManagementPage: React.FC = () => {
   const chapterForm = Form.useForm()[0];
   const courseForm = Form.useForm()[0];
 
-  // 获取课程列表数据
   const fetchCourseList = async () => {
     setLoading(true);
     try {
@@ -77,7 +76,6 @@ const CourseManagementPage: React.FC = () => {
     fetchCourseList();
   }, []);
 
-  // 前端搜索函数
   const handleSearch = async (params: any) => {
     const { title } = params;
     if (!title) {
@@ -120,14 +118,12 @@ const CourseManagementPage: React.FC = () => {
     if (!currentCourse) return;
 
     try {
-      // 调用API创建章节
       const res = await createChapter({
         courseId: currentCourse.id,
         title: values.title,
       });
 
       if (res.success && res.data) {
-        // 更新本地状态
         const newChapter: Chapter = {
           id: res.data.id,
           title: res.data.title,
@@ -140,8 +136,6 @@ const CourseManagementPage: React.FC = () => {
           chapters: [...currentCourse.chapters, newChapter],
         };
         setCurrentCourse(updatedCourse);
-
-        // 更新 courseList 状态
         setCourseList((prevList) =>
           prevList.map((course) =>
             course.id === currentCourse.id
@@ -165,7 +159,6 @@ const CourseManagementPage: React.FC = () => {
     if (!currentCourse || !currentChapter) return;
 
     try {
-      // 更新本地状态
       setCurrentCourse((prevCourse) => {
         if (!prevCourse) return null;
         return {
@@ -178,7 +171,6 @@ const CourseManagementPage: React.FC = () => {
         };
       });
 
-      // 调用API更新章节
       const res = await updateChapter(currentChapter.id, {
         title: values.title,
       });
@@ -189,7 +181,6 @@ const CourseManagementPage: React.FC = () => {
         chapterForm.resetFields();
       } else {
         message.error(res.message || "更新章节失败");
-        // 如果API调用失败，回滚本地状态
         setCurrentCourse((prevCourse) => {
           if (!prevCourse) return null;
           return {
@@ -204,7 +195,6 @@ const CourseManagementPage: React.FC = () => {
       }
     } catch (error) {
       message.error("更新章节失败，请重试");
-      // 如果发生错误，回滚本地状态
       setCurrentCourse((prevCourse) => {
         if (!prevCourse) return null;
         return {
@@ -229,7 +219,6 @@ const CourseManagementPage: React.FC = () => {
         try {
           const res = await deleteChapter(chapterId);
           if (res.success) {
-            // 更新本地状态
             const updatedChapters = currentCourse.chapters.filter(
               (chapter: Chapter) => chapter.id !== chapterId
             );
@@ -238,7 +227,6 @@ const CourseManagementPage: React.FC = () => {
               chapters: updatedChapters,
             });
 
-            // 更新 courseList 状态
             setCourseList((prevList) =>
               prevList.map((course) =>
                 course.id === currentCourse.id
@@ -260,7 +248,6 @@ const CourseManagementPage: React.FC = () => {
 
   const handleUploadMaterial = async (file: File) => {
     try {
-      // 检查文件大小
       if (file.size === 0) {
         message.error("文件大小为0，请选择有效的文件");
         return;
@@ -271,7 +258,6 @@ const CourseManagementPage: React.FC = () => {
       formData.append("chapterId", currentChapter?.id || "");
       formData.append("fileName", file.name);
 
-      // 获取 token
       const token = JSON.parse(localStorage.getItem("userInfo") || "{}").state
         .token;
       if (!token) {
@@ -279,7 +265,6 @@ const CourseManagementPage: React.FC = () => {
         return;
       }
 
-      // 在 formData 中添加 token
       formData.append("token", token);
 
       console.log("开始上传文件:", {
@@ -292,7 +277,6 @@ const CourseManagementPage: React.FC = () => {
       console.log("上传响应:", response);
 
       if (response.success && currentChapter) {
-        // 更新当前章节的材料列表
         const newMaterial: Material = {
           id: response.data.id.toString(),
           title: response.data.fileName,
@@ -335,13 +319,10 @@ const CourseManagementPage: React.FC = () => {
         try {
           const res = await reviewMaterial(materialId, approved);
           if (res.success) {
-            // 重新获取章节详情
             const chapterRes = await getChapterDetail(chapterId);
             if (chapterRes.success && chapterRes.data) {
-              // 更新 currentChapter
               setCurrentChapter(chapterRes.data);
 
-              // 更新 currentCourse 中的章节数据
               setCurrentCourse((prevCourse) => {
                 if (!prevCourse) return null;
                 const updatedChapters = prevCourse.chapters.map((chapter) =>
@@ -376,7 +357,6 @@ const CourseManagementPage: React.FC = () => {
         try {
           const res = await deleteMaterial(materialId);
           if (res.success) {
-            // 更新本地状态
             setCurrentCourse((prevCourse) => {
               if (!prevCourse) return null;
               return {
@@ -395,7 +375,6 @@ const CourseManagementPage: React.FC = () => {
               };
             });
 
-            // 如果当前正在查看的章节是被删除资料的章节，更新当前章节
             if (currentChapter?.id === chapterId) {
               setCurrentChapter((prevChapter) => {
                 if (!prevChapter) return null;
@@ -421,12 +400,11 @@ const CourseManagementPage: React.FC = () => {
 
   const handleAddCourse = async (values: any) => {
     try {
-      // 上传封面图片
       let coverUrl = "";
       if (values.cover) {
         const formData = new FormData();
         formData.append("file", values.cover.file);
-        formData.append("type", "course_cover"); // 添加类型标识，表示这是课程封面
+        formData.append("type", "course_cover");
         const uploadRes = await uploadFile(formData);
         if (!uploadRes.success) {
           message.error("封面图片上传失败");
@@ -460,11 +438,9 @@ const CourseManagementPage: React.FC = () => {
       const res = await deleteCourse(courseId);
       if (res.success) {
         message.success("删除成功");
-        // 更新本地状态
         setCourseList((prevList) =>
           prevList.filter((course) => course.id !== courseId)
         );
-        // 强制刷新表格
         actionRef.current?.reload();
       } else {
         message.error(res.message || "删除失败");
@@ -474,7 +450,6 @@ const CourseManagementPage: React.FC = () => {
     }
   };
 
-  // 获取课程详情
   const handleGetCourseDetail = async (courseId: string) => {
     try {
       const res = await getCourseDetail(courseId);
@@ -532,10 +507,8 @@ const CourseManagementPage: React.FC = () => {
       render: (time: string) => {
         if (!time) return "-";
         try {
-          // 确保时间格式正确
           const date = new Date(time);
           if (isNaN(date.getTime())) {
-            // 如果时间格式不正确，尝试转换格式
             const formattedTime = time.replace(" ", "T");
             const newDate = new Date(formattedTime);
             return isNaN(newDate.getTime()) ? "-" : newDate.toLocaleString();
@@ -556,7 +529,6 @@ const CourseManagementPage: React.FC = () => {
             onClick={() => {
               if (material.url) {
                 try {
-                  // 检查URL是否有效
                   new URL(material.url);
                   window.open(material.url, "_blank");
                 } catch (error) {
@@ -784,13 +756,11 @@ const CourseManagementPage: React.FC = () => {
     },
   ];
 
-  // 更新课程状态
   const handleUpdateCourseStatus = async (
     courseId: string,
     status: "draft" | "published" | "archived"
   ) => {
     try {
-      // 先更新本地状态
       setCourseList((prevList) =>
         prevList.map((course) =>
           course.id === courseId ? { ...course, status } : course
@@ -805,7 +775,6 @@ const CourseManagementPage: React.FC = () => {
         message.success(status === "published" ? "课程已发布" : "课程已归档");
       } else {
         message.error(res.message || "操作失败");
-        // 如果API调用失败，回滚本地状态
         setCourseList((prevList) =>
           prevList.map((course) =>
             course.id === courseId
@@ -817,7 +786,6 @@ const CourseManagementPage: React.FC = () => {
       }
     } catch (error) {
       message.error("操作失败，请重试");
-      // 如果发生错误，回滚本地状态
       setCourseList((prevList) =>
         prevList.map((course) =>
           course.id === courseId ? { ...course, status: course.status } : course

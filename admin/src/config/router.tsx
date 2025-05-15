@@ -7,17 +7,15 @@ import {
   DashboardOutlined,
   EditOutlined,
   TableOutlined,
-  MessageOutlined, // 帖子图标
-  ReadOutlined, // <--- 新增：习题图标
+  MessageOutlined,
+  ReadOutlined,
 } from "@ant-design/icons";
 
-// 修改：将 Dashboard 指向新的 DashboardPage
-const Dashboard = lazy(() => import("../pages/DashboardPage")); // <--- 修改此行
+const Dashboard = lazy(() => import("../pages/DashboardPage"));
 const UserPage = lazy(() => import("../pages/UserPage"));
 const CoursePage = lazy(() => import("../pages/CoursePage"));
 const PostPage = lazy(() => import("../pages/PostPage"));
-// --- 新增懒加载组件 ---
-const ExercisePage = lazy(() => import("../pages/ExercisePage")); // <--- 新增：习题管理页
+const ExercisePage = lazy(() => import("../pages/ExercisePage"));
 
 const routes = [
   {
@@ -36,13 +34,13 @@ const routes = [
           },
           {
             path: "user",
-            title: "用户管理", // 统一名称
+            title: "用户管理",
             icon: <EditOutlined />,
             element: <UserPage />,
           },
           {
             path: "course",
-            title: "课程管理", // 统一名称
+            title: "课程管理",
             icon: <TableOutlined />,
             element: <CoursePage />,
           },
@@ -52,12 +50,11 @@ const routes = [
             icon: <MessageOutlined />,
             element: <PostPage />,
           },
-          // --- 新增习题管理路由 ---
           {
-            path: "exercise", // 路由路径
-            title: "习题管理", // 菜单标题
-            icon: <ReadOutlined />, // 使用习题图标
-            element: <ExercisePage />, // 使用懒加载的组件
+            path: "exercise",
+            title: "习题管理",
+            icon: <ReadOutlined />,
+            element: <ExercisePage />,
           },
           {
             path: "*",

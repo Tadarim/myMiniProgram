@@ -34,7 +34,7 @@ const PostManagementPage: React.FC = () => {
     try {
       const response = await getPosts({
         current: 1,
-        pageSize: 1000, // 获取所有数据用于前端搜索
+        pageSize: 1000,
       });
       if (response.success && response.data) {
         setAllPosts(response.data);
@@ -280,8 +280,8 @@ const PostManagementPage: React.FC = () => {
                 message.success(
                   `状态已切换为 ${newStatus === "public" ? "公开" : "私密"}`
                 );
-                await fetchPosts(); // 先重新获取数据
-                actionRef.current?.reload(); // 然后刷新表格
+                await fetchPosts();
+                actionRef.current?.reload();
               } catch (error) {
                 message.error(
                   error instanceof Error ? error.message : "状态切换失败"
@@ -301,8 +301,8 @@ const PostManagementPage: React.FC = () => {
               try {
                 await deletePost(record.id);
                 message.success("删除成功");
-                await fetchPosts(); // 重新获取数据
-                actionRef.current?.reload(); // 然后刷新表格
+                await fetchPosts();
+                actionRef.current?.reload();
               } catch (error) {
                 message.error(
                   error instanceof Error ? error.message : "删除失败"

@@ -9,7 +9,6 @@ export const initWebSocketServer = (server: Server) => {
   const wss = new WebSocketServer({ server });
 
   wss.on("connection", (ws, req) => {
-    // 从 URL 中获取用户 token
     const token = new URL(
       req.url!,
       `http://${req.headers.host}`
@@ -20,7 +19,6 @@ export const initWebSocketServer = (server: Server) => {
       return;
     }
 
-    // 验证 token 并获取用户信息
     const payload = verifyToken(token);
     if (!payload) {
       ws.close();
@@ -29,10 +27,8 @@ export const initWebSocketServer = (server: Server) => {
 
     const userId = payload.id;
 
-    // 存储用户连接
     onlineUsers.set(userId, ws);
 
-    // 发送在线状态
     ws.send(
       JSON.stringify({
         type: "status",
@@ -40,18 +36,14 @@ export const initWebSocketServer = (server: Server) => {
       })
     );
 
-    // 处理消息
     ws.on("message", (message) => {
       try {
         const data = JSON.parse(message.toString());
 
-        // 根据消息类型处理
         switch (data.type) {
           case "chat":
-            // 获取接收者的 WebSocket 连接
             const receiverWs = onlineUsers.get(data.receiverId);
             if (receiverWs) {
-              // 发送消息给接收者
               receiverWs.send(
                 JSON.stringify({
                   type: "chat",
