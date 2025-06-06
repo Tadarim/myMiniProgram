@@ -76,7 +76,7 @@ export async function addQuestion(
   data: Omit<Question, "id">
 ): Promise<ApiResponse<Question>> {
   return request({
-    url: `/exercise/${exerciseSetId}/questions/add`,
+    url: `/exercise/${exerciseSetId}/questions`,
     method: "post",
     data,
   });

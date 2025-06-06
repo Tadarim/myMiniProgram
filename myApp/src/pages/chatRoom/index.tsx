@@ -525,7 +525,7 @@ const ChatRoom: FC = () => {
   useEffect(() => {
     const token = Taro.getStorageSync('token');
     Taro.connectSocket({
-      url: `ws://localhost:3000?token=${token}`
+      url: `ws://192.168.42.147:3000?token=${token}`
     });
     Taro.onSocketOpen(() => {
       console.log('WebSocket 连接已建立');

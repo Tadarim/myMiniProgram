@@ -1,4 +1,4 @@
-export const BASE_URL = 'http://localhost:3000/api';
+export const BASE_URL = 'http://192.168.42.147:3000/api';
 
 export const API_ROUTES = {
   LOGIN: '/client/auth/login',

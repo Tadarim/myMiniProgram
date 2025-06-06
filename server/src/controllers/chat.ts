@@ -342,10 +342,10 @@ export const getChatMessages = async (req: Request, res: Response) => {
       // 合并消息并按时间排序
       const allMessages = [...messages, ...systemMessages].sort(
         (a, b) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
 
-      // 为文件和图片类型的消息自动生成新的带token的URL
+      // 为文件和图片类型的消息自动生成新的带token的URL，并统一时间格式
       const messagesWithUpdatedUrls = allMessages.map((msg) => {
         if (
           msg.message_type === "chat" &&
@@ -384,6 +384,10 @@ export const getChatMessages = async (req: Request, res: Response) => {
             console.error("为文件生成URL失败:", err);
           }
         }
+        // 统一时间格式
+        if (msg.created_at) {
+          msg.created_at = new Date(msg.created_at).toISOString();
+        }
         return msg;
       });
 
@@ -393,7 +397,7 @@ export const getChatMessages = async (req: Request, res: Response) => {
       return res.json({
         code: 200,
         success: true,
-        data: messagesWithUpdatedUrls.reverse(),
+        data: messagesWithUpdatedUrls, // 不再reverse，顺序已升序
       });
     } catch (error) {
       console.error(`[getChatMessages] 查询消息失败:`, error);

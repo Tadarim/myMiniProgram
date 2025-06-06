@@ -1,5 +1,5 @@
 // 开发环境
-const DEV_API_BASE_URL = 'http://localhost:3000/api';
+const DEV_API_BASE_URL = 'http://192.168.42.147:3000/api';
 
 // 生产环境
 const PROD_API_BASE_URL = 'https://api.yourdomain.com/api';

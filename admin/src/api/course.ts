@@ -100,7 +100,7 @@ export async function updateChapter(
   data: ChapterUpdate
 ): Promise<ApiResponse<null>> {
   return request({
-    url: `/course/chapters/${id}`,
+    url: `/course/chapter/${id}`,
     method: "put",
     data,
   });
@@ -110,7 +110,7 @@ export async function createChapter(
   data: ChapterCreate
 ): Promise<ChapterResponse> {
   return request({
-    url: "/course/chapters",
+    url: "/course/chapter",
     method: "post",
     data,
   });
@@ -121,7 +121,7 @@ export const deleteChapter = async (
 ): Promise<ApiResponse<null>> => {
   try {
     const response = await request({
-      url: `/course/chapters/${chapterId}`,
+      url: `/course/chapter/${chapterId}`,
       method: "delete",
     });
     return response;
@@ -137,7 +137,7 @@ export const deleteChapter = async (
 
 export async function getChapterDetail(id: string): Promise<ChapterResponse> {
   return request({
-    url: `/course/chapters/${id}`,
+    url: `/course/chapter/${id}`,
     method: "get",
   });
 }
@@ -147,8 +147,8 @@ export async function reviewMaterial(
   approved: boolean
 ): Promise<ApiResponse<null>> {
   return request({
-    url: `/course/materials/${materialId}/review`,
-    method: "post",
+    url: `/course/material/${materialId}/review`,
+    method: "put",
     data: {
       approved,
     },
@@ -159,7 +159,7 @@ export async function deleteMaterial(
   materialId: string
 ): Promise<ApiResponse<null>> {
   return request({
-    url: `/course/materials/${materialId}`,
+    url: `/course/material/${materialId}`,
     method: "delete",
   });
 }
