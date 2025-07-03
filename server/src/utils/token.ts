@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "xuxinyu.tadarim";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 export interface TokenPayload {
   id: number;
