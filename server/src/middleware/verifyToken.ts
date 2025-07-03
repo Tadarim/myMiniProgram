@@ -17,7 +17,7 @@ declare global {
 
 const verifyTokenMiddleware = () => {
   return jwt({
-    secret: process.env.JWT_SECRET || "xuxinyu.tadarim",
+    secret: process.env.JWT_SECRET ?? '',
     algorithms: ["HS256"],
     credentialsRequired: true,
     getToken: function fromHeaderOrQuerystring(req: Request) {
